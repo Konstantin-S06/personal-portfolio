@@ -506,10 +506,10 @@ This project is open source and available under the MIT License. Feel free to us
 
 ## Contact
 
-**John Doe**  
-Email: your.email@example.com  
-LinkedIn: [Your LinkedIn]  
-GitHub: [@yourusername](https://github.com/yourusername)
+**Konstantin Shtop**  
+Email: konstantin.shtop@gmail.com 
+LinkedIn: [https://www.linkedin.com/in/konstantin-shtop-529277327/]  
+GitHub: [@Konstantin-S06](https://github.com/Konstantin-S06)
 
 ---
 
