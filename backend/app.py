@@ -91,76 +91,34 @@ def get_projects():
         return jsonify({'error': 'Failed to fetch projects'}), 500
 
 
-@app.route('/api/projects', methods=['POST'])
-def create_project():
-    """
-    POST /api/projects
-    
-    Creates a new project in the database.
-    
-    Expected JSON body:
-    {
-        "title": "Project Title",
-        "description": "Project description",
-        "tech_stack": "Python, Flask, SQL",
-        "github_url": "https://github.com/..." (optional)
-    }
-    
-    Status codes:
-    - 201: Created successfully
-    - 400: Invalid input
-    - 500: Server error
-    """
+@app.route('/api/projects', methods=['GET'])
+def get_projects():
     try:
-        data = request.get_json()
+        with get_db_connection() as conn:  # ← Changed
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT id, title, description, tech_stack, github_url
+                FROM projects
+                ORDER BY id DESC
+            ''')
+            
+            projects = []
+            for row in cursor.fetchall():
+                projects.append({
+                    'id': row[0],
+                    'title': row[1],
+                    'description': row[2],
+                    'tech_stack': row[3],
+                    'github_url': row[4]
+                })
+        # conn.close() ← REMOVE THIS (context manager handles it)
         
-        # Validate required fields
-        required_fields = ['title', 'description', 'tech_stack']
-        for field in required_fields:
-            if not data.get(field) or not data.get(field).strip():
-                return jsonify({'error': f'Missing required field: {field}'}), 400
-        
-        # Extract and sanitize data
-        title = data['title'].strip()
-        description = data['description'].strip()
-        tech_stack = data['tech_stack'].strip()
-        github_url = data.get('github_url', '').strip() or None
-        
-        # Additional validation
-        if len(title) > 200:
-            return jsonify({'error': 'Title too long (max 200 characters)'}), 400
-        
-        if len(description) > 2000:
-            return jsonify({'error': 'Description too long (max 2000 characters)'}), 400
-        
-        if len(tech_stack) > 300:
-            return jsonify({'error': 'Tech stack too long (max 300 characters)'}), 400
-        
-        # Validate GitHub URL if provided
-        if github_url and not github_url.startswith('http'):
-            return jsonify({'error': 'Invalid GitHub URL'}), 400
-        
-        # Insert into database using parameterized query (prevents SQL injection)
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            INSERT INTO projects (title, description, tech_stack, github_url)
-            VALUES (?, ?, ?, ?)
-        ''', (title, description, tech_stack, github_url))
-        
-        conn.commit()
-        project_id = cursor.lastrowid
-        conn.close()
-        
-        return jsonify({
-            'message': 'Project created successfully',
-            'project_id': project_id
-        }), 201
+        return jsonify({'projects': projects}), 200
         
     except Exception as e:
-        app.logger.error(f"Error creating project: {str(e)}")
-        return jsonify({'error': 'Failed to create project'}), 500
+        app.logger.error(f"Error fetching projects: {str(e)}")
+        return jsonify({'error': 'Failed to fetch projects'}), 500
 
 
 @app.route('/api/contact', methods=['POST'])

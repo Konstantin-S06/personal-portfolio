@@ -538,7 +538,8 @@ footer p {
     color: var(--primary-color);
     text-decoration: none;
     font-weight: 500;
-    word-break: break-all;
+    word-break: break-word; 
+    overflow-wrap: break-word; 
     transition: color 0.2s;
 }
 
