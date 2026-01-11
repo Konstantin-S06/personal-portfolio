@@ -16,7 +16,7 @@
 // Change this URL based on your deployment
 // For local development: 'http://localhost:5000'
 // For production: 'https://your-backend.onrender.com' or your Fly.io URL
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://konstantins-portfolio.onrender.com';
 
 // ===========================
 // PROJECTS FUNCTIONS
