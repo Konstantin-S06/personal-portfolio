@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Admin - Manage portfolio projects">
+    <title>Admin | Software Engineer Portfolio</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <a href="index.html">Portfolio</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="projects.html">Projects</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li><a href="admin.html" class="active">Admin</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <section class="page-header">
+            <div class="container">
+                <h1>Admin Panel</h1>
+                <p>Add new projects to your portfolio</p>
+            </div>
+        </section>
+
+        <section class="admin-section">
+            <div class="container">
+                <div class="admin-notice">
+                    <p><strong>Security Notice:</strong> This admin panel has no authentication by design for portfolio demonstration purposes. In a production environment, this would include proper authentication, authorization, and CSRF protection.</p>
+                </div>
+
+                <div class="admin-form-container">
+                    <h2>Add New Project</h2>
+                    
+                    <div id="admin-message" class="form-message" style="display: none;"></div>
+
+                    <div id="project-form-wrapper">
+                        <div class="form-group">
+                            <label for="project-title">Project Title *</label>
+                            <input 
+                                type="text" 
+                                id="project-title" 
+                                name="title" 
+                                required 
+                                placeholder="e.g., Real-time Chat Application"
+                                maxlength="200"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="project-description">Description / Problem Statement *</label>
+                            <textarea 
+                                id="project-description" 
+                                name="description" 
+                                required 
+                                rows="6" 
+                                placeholder="Describe the problem this project solves and your technical approach..."
+                                maxlength="2000"
+                            ></textarea>
+                            <small>Include: Problem statement, technical approach, and key features</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="project-tech">Tech Stack *</label>
+                            <input 
+                                type="text" 
+                                id="project-tech" 
+                                name="tech_stack" 
+                                required 
+                                placeholder="e.g., Python, Flask, WebSocket, PostgreSQL, Redis"
+                                maxlength="300"
+                            >
+                            <small>Comma-separated list of technologies used</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="project-github">GitHub URL</label>
+                            <input 
+                                type="url" 
+                                id="project-github" 
+                                name="github_url" 
+                                placeholder="https://github.com/yourusername/project-name"
+                                maxlength="300"
+                            >
+                            <small>Optional: Link to project repository</small>
+                        </div>
+
+                        <button 
+                            type="button" 
+                            id="submit-project-btn" 
+                            class="btn-primary"
+                            onclick="submitProject()"
+                        >
+                            Add Project
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 John Doe. Built with vanilla HTML, CSS, and JavaScript. Backend powered by Python Flask.</p>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Contact - Get in touch for software engineering opportunities">
+    <title>Contact | Software Engineer Portfolio</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <a href="index.html">Portfolio</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="projects.html">Projects</a></li>
+                <li><a href="contact.html" class="active">Contact</a></li>
+                <li><a href="admin.html">Admin</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <section class="page-header">
+            <div class="container">
+                <h1>Get In Touch</h1>
+                <p>Interested in discussing opportunities or collaboration? Send me a message.</p>
+            </div>
+        </section>
+
+        <section class="contact-section">
+            <div class="container">
+                <div class="contact-wrapper">
+                    <div class="contact-form-container">
+                        <div id="form-message" class="form-message" style="display: none;"></div>
+                        
+                        <div id="contact-form-wrapper">
+                            <div class="form-group">
+                                <label for="name">Name *</label>
+                                <input 
+                                    type="text" 
+                                    id="name" 
+                                    name="name" 
+                                    required 
+                                    placeholder="Your full name"
+                                    maxlength="100"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="email">Email *</label>
+                                <input 
+                                    type="email" 
+                                    id="email" 
+                                    name="email" 
+                                    required 
+                                    placeholder="your.email@example.com"
+                                    maxlength="100"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="message">Message *</label>
+                                <textarea 
+                                    id="message" 
+                                    name="message" 
+                                    required 
+                                    rows="6" 
+                                    placeholder="Your message..."
+                                    maxlength="1000"
+                                ></textarea>
+                            </div>
+
+                            <button 
+                                type="button" 
+                                id="submit-btn" 
+                                class="btn-primary"
+                                onclick="submitContactForm()"
+                            >
+                                Send Message
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="contact-info">
+                        <h3>Why Reach Out?</h3>
+                        <ul>
+                            <li><strong>Job Opportunities:</strong> I'm open to full-time and internship positions</li>
+                            <li><strong>Collaboration:</strong> Interested in working on interesting technical projects</li>
+                            <li><strong>Networking:</strong> Always happy to connect with fellow engineers</li>
+                        </ul>
+                        
+                        <div class="contact-note">
+                            <p><strong>Note:</strong> All messages are stored securely in a SQL database and reviewed regularly. You can expect a response within 1-2 business days.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 John Doe. Built with vanilla HTML, CSS, and JavaScript. Backend powered by Python Flask.</p>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

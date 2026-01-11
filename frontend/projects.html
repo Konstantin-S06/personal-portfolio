@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Software Engineering Projects - Full-stack applications built with Python, SQL, and modern web technologies">
+    <title>Projects | Software Engineer Portfolio</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <a href="index.html">Portfolio</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="projects.html" class="active">Projects</a></li>
+                <li><a href="contact.html">Contact</a></li>
+                <li><a href="admin.html">Admin</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <section class="page-header">
+            <div class="container">
+                <h1>Projects</h1>
+                <p>Production-ready applications demonstrating full-stack engineering capabilities</p>
+            </div>
+        </section>
+
+        <section class="projects-section">
+            <div class="container">
+                <!-- Loading state -->
+                <div id="loading" class="loading">
+                    <p>Loading projects...</p>
+                </div>
+
+                <!-- Error state -->
+                <div id="error" class="error-message" style="display: none;">
+                    <p>Unable to load projects. Please try again later.</p>
+                </div>
+
+                <!-- Projects container - populated by JavaScript -->
+                <div id="projects-container" class="projects-grid">
+                    <!-- Projects will be dynamically inserted here -->
+                </div>
+
+                <!-- Empty state -->
+                <div id="empty-state" class="empty-state" style="display: none;">
+                    <p>No projects available yet. Check back soon!</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 John Doe. Built with vanilla HTML, CSS, and JavaScript. Backend powered by Python Flask.</p>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script>
+        // Load projects when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProjects();
+        });
+    </script>
+</body>
+</html>
