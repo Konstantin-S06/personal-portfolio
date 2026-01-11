@@ -17,7 +17,6 @@
                 <li><a href="index.html">Home</a></li>
                 <li><a href="projects.html">Projects</a></li>
                 <li><a href="contact.html" class="active">Contact</a></li>
-                <li><a href="admin.html">Admin</a></li>
             </ul>
         </div>
     </nav>
@@ -26,76 +25,70 @@
         <section class="page-header">
             <div class="container">
                 <h1>Get In Touch</h1>
-                <p>Interested in discussing opportunities or collaboration? Send me a message.</p>
+                <p>Let's connect! I'm always open to discussing new opportunities and interesting projects.</p>
             </div>
         </section>
 
         <section class="contact-section">
             <div class="container">
-                <div class="contact-wrapper">
-                    <div class="contact-form-container">
-                        <div id="form-message" class="form-message" style="display: none;"></div>
-                        
-                        <div id="contact-form-wrapper">
-                            <div class="form-group">
-                                <label for="name">Name *</label>
-                                <input 
-                                    type="text" 
-                                    id="name" 
-                                    name="name" 
-                                    required 
-                                    placeholder="Your full name"
-                                    maxlength="100"
-                                >
-                            </div>
-
-                            <div class="form-group">
-                                <label for="email">Email *</label>
-                                <input 
-                                    type="email" 
-                                    id="email" 
-                                    name="email" 
-                                    required 
-                                    placeholder="your.email@example.com"
-                                    maxlength="100"
-                                >
-                            </div>
-
-                            <div class="form-group">
-                                <label for="message">Message *</label>
-                                <textarea 
-                                    id="message" 
-                                    name="message" 
-                                    required 
-                                    rows="6" 
-                                    placeholder="Your message..."
-                                    maxlength="1000"
-                                ></textarea>
-                            </div>
-
-                            <button 
-                                type="button" 
-                                id="submit-btn" 
-                                class="btn-primary"
-                                onclick="submitContactForm()"
-                            >
-                                Send Message
-                            </button>
-                        </div>
+                <div class="contact-grid">
+                    <!-- Contact Methods -->
+                    <div class="contact-card">
+                        <div class="contact-icon">📧</div>
+                        <h3>Email</h3>
+                        <p>Best for detailed inquiries</p>
+                        <a href="mailto:konstantin.shtop@gmail.com" class="contact-link">konstantin.shtop@gmail.com</a>
                     </div>
 
-                    <div class="contact-info">
-                        <h3>Why Reach Out?</h3>
-                        <ul>
-                            <li><strong>Job Opportunities:</strong> I'm open to full-time and internship positions</li>
-                            <li><strong>Collaboration:</strong> Interested in working on interesting technical projects</li>
-                            <li><strong>Networking:</strong> Always happy to connect with fellow engineers</li>
-                        </ul>
-                        
-                        <div class="contact-note">
-                            <p><strong>Note:</strong> All messages are stored securely in a SQL database and reviewed regularly. You can expect a response within 1-2 business days.</p>
+                    <div class="contact-card">
+                        <div class="contact-icon">💼</div>
+                        <h3>LinkedIn</h3>
+                        <p>Let's connect professionally</p>
+                        <a href="https://www.linkedin.com/in/konstantin-shtop-529277327/" target="_blank" rel="noopener noreferrer" class="contact-link">linkedin.com/in/konstantin-shtop-529277327/</a>
+                    </div>
+
+                    <div class="contact-card">
+                        <div class="contact-icon">💻</div>
+                        <h3>GitHub</h3>
+                        <p>Check out my code</p>
+                        <a href="https://github.com/Konstantin-S06" target="_blank" rel="noopener noreferrer" class="contact-link">github.com/Konstantin-S06</a>
+                    </div>
+
+                    <!-- Optional: Add more contact methods -->
+                    <div class="contact-card">
+                        <div class="contact-icon">📱</div>
+                        <h3>Phone</h3>
+                        <p>Available for calls</p>
+                        <a href="tel:+2896814812" class="contact-link">+1 (289) 681-4812</a>
+                    </div>
+                </div>
+
+                <!-- Why Reach Out Section -->
+                <div class="reach-out-section">
+                    <h2>Why Reach Out?</h2>
+                    <div class="reasons-grid">
+                        <div class="reason-item">
+                            <h3>💼 Job Opportunities</h3>
+                            <p>I'm actively seeking full-time positions and internships in software engineering. Open to backend, full-stack, and systems roles.</p>
+                        </div>
+                        <div class="reason-item">
+                            <h3>🤝 Collaboration</h3>
+                            <p>Interested in working on interesting technical projects, open source contributions, or hackathons.</p>
+                        </div>
+                        <div class="reason-item">
+                            <h3>🌐 Networking</h3>
+                            <p>Always happy to connect with fellow engineers, discuss technology, or share knowledge.</p>
+                        </div>
+                        <div class="reason-item">
+                            <h3>💡 Consulting</h3>
+                            <p>Available for freelance work, technical consulting, or code reviews.</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- Response Time Notice -->
+                <div class="response-notice">
+                    <p><strong>📬 Response Time:</strong> I typically respond to emails within 24-48 hours during weekdays. For urgent matters, please mention "URGENT" in the subject line.</p>
                 </div>
             </div>
         </section>
@@ -103,10 +96,8 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2026 Konstantin Shtop. Built with vanilla HTML, CSS, and JavaScript. Backend powered by Python Flask.</p>
+            <p>&copy; 2026 Your Name. Built with vanilla HTML, CSS, and JavaScript. Backend powered by Python Flask.</p>
         </div>
     </footer>
-
-    <script src="js/main.js"></script>
 </body>
 </html>
