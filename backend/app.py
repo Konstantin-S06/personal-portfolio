@@ -265,6 +265,54 @@ def verify_admin():
     except Exception as e:
         app.logger.error(f"Error verifying admin: {str(e)}")
         return jsonify({'error': 'Verification failed'}), 500
+    
+
+from ai_helper import create_sql_query, format_sql_results
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    """
+    AI-powered chat endpoint using free Hugging Face API
+    """
+    try:
+        data = request.get_json()
+        
+        if not data.get('question') or not data.get('question').strip():
+            return jsonify({'error': 'Question is required'}), 400
+        
+        question = data['question'].strip()
+        
+        if len(question) > 500:
+            return jsonify({'error': 'Question too long'}), 400
+        
+        # Convert to SQL using free AI
+        sql_query = create_sql_query(question)
+        
+        if sql_query is None:
+            return jsonify({
+                'answer': "I can only answer questions about Konstantin's portfolio projects. Try asking about his projects or technologies!"
+            }), 200
+        
+        # Execute query
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(sql_query)
+        results = cursor.fetchall()
+        conn.close()
+        
+        # Format with AI
+        answer = format_sql_results(question, results)
+        
+        return jsonify({
+            'answer': answer,
+            'sql_query': sql_query
+        }), 200
+        
+    except Exception as e:
+        app.logger.error(f"Chat error: {str(e)}")
+        return jsonify({
+            'answer': 'Sorry, I encountered an error. Please try again.'
+        }), 200
 
 
 # ===========================

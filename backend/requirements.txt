@@ -28,6 +28,9 @@ python-dotenv==1.0.0
 # Database adapter for PostgreSQL
 psycopg2-binary==2.9.9
 
+# AI Integration with Hugging Face
+requests==2.31.0
+
 # ===========================
 # DEVELOPMENT DEPENDENCIES
 # ===========================
