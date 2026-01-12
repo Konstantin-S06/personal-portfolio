@@ -121,10 +121,21 @@ def create_project():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute('''
-            INSERT INTO projects (title, description, tech_stack, github_url)
-            VALUES (?, ?, ?, ?)
-        ''', (title, description, tech_stack, github_url))
+        # Check if using PostgreSQL or SQLite
+        DATABASE_URL = os.getenv('DATABASE_URL')
+
+        if DATABASE_URL:
+            # PostgreSQL uses %s placeholders
+            cursor.execute('''
+                INSERT INTO projects (title, description, tech_stack, github_url)
+                VALUES (%s, %s, %s, %s)
+            ''', (title, description, tech_stack, github_url))
+        else:
+            # SQLite uses ? placeholders
+            cursor.execute('''
+                INSERT INTO projects (title, description, tech_stack, github_url)
+                VALUES (?, ?, ?, ?)
+            ''', (title, description, tech_stack, github_url))
         
         conn.commit()
         project_id = cursor.lastrowid
