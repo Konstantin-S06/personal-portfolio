@@ -13,9 +13,9 @@ def get_db_connection():
     Uses PostgreSQL in production, SQLite for local development.
     """
     if DATABASE_URL:
-        # Production: Use PostgreSQL
-        import psycopg2
-        conn = psycopg2.connect(DATABASE_URL)
+        # Production: Use PostgreSQL with psycopg3
+        import psycopg
+        conn = psycopg.connect(DATABASE_URL)
         return conn
     else:
         # Local development: Use SQLite
