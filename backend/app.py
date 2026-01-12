@@ -228,6 +228,44 @@ def method_not_allowed(error):
 def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
+@app.route('/api/admin/verify', methods=['POST'])
+def verify_admin():
+    """
+    POST /api/admin/verify
+    
+    Verifies admin password.
+    Returns a simple token on success.
+    """
+    try:
+        data = request.get_json()
+        
+        if not data.get('password'):
+            return jsonify({'error': 'Password required'}), 400
+        
+        submitted_password = data['password'].strip()
+        correct_password = os.getenv('ADMIN_PASSWORD', 'default_password_change_me')
+        
+        if submitted_password == correct_password:
+            # Generate a simple session token (timestamp-based)
+            # In production, this would be a JWT token
+            import time
+            import hashlib
+            
+            token = hashlib.sha256(
+                f"{correct_password}_{int(time.time())}".encode()
+            ).hexdigest()[:32]
+            
+            return jsonify({
+                'success': True,
+                'token': token
+            }), 200
+        else:
+            return jsonify({'error': 'Invalid password'}), 401
+            
+    except Exception as e:
+        app.logger.error(f"Error verifying admin: {str(e)}")
+        return jsonify({'error': 'Verification failed'}), 500
+
 
 # ===========================
 # APPLICATION ENTRY POINT

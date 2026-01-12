@@ -112,5 +112,72 @@
     </footer>
 
     <script src="js/main.js"></script>
+    
+    <!-- SECURE PASSWORD PROTECTION -->
+    <script>
+        // Password is stored securely on backend, not in code
+        let adminToken = sessionStorage.getItem('admin_token');
+        
+        async function checkAdminAccess() {
+            // If already authenticated this session
+            if (adminToken) {
+                return true;
+            }
+            
+            // Prompt for password
+            const password = prompt("🔐 Admin Access Required\n\nEnter password:");
+            
+            if (password === null) {
+                // User clicked cancel
+                window.location.href = "index.html";
+                return false;
+            }
+            
+            // Verify password with backend
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/verify`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({password: password})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Store token for this session
+                    adminToken = data.token;
+                    sessionStorage.setItem('admin_token', adminToken);
+                    return true;
+                } else {
+                    alert("❌ Incorrect password. Access denied.");
+                    window.location.href = "index.html";
+                    return false;
+                }
+                
+            } catch (error) {
+                console.error('Admin verification error:', error);
+                alert("❌ Unable to verify password. Please try again.");
+                window.location.href = "index.html";
+                return false;
+            }
+        }
+        
+        // Check on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            const hasAccess = await checkAdminAccess();
+            if (!hasAccess) {
+                document.body.innerHTML = '<div style="text-align:center;margin-top:50px;"><h2>Access Denied</h2><p><a href="index.html">Return Home</a></p></div>';
+            }
+        });
+        
+        // Protect the submit function
+        const originalSubmit = window.submitProject;
+        window.submitProject = async function() {
+            const hasAccess = await checkAdminAccess();
+            if (hasAccess) {
+                originalSubmit();
+            }
+        };
+    </script>
 </body>
 </html>
