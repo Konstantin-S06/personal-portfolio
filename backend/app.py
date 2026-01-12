@@ -10,11 +10,10 @@ and contact form submissions. It demonstrates production-ready practices:
 - CORS handling for cross-origin requests
 - Clean separation of concerns
 
-Author: John Doe
+Author: Konstantin Shtop
 """
 
 import os
-import sqlite3
 from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -26,18 +25,16 @@ from db import init_db, get_db_connection
 
 app = Flask(__name__)
 
-# CORS configuration - allows frontend to make requests from different origin
-# In production, replace '*' with your specific frontend domain
+# CORS configuration
 CORS(app, resources={
     r"/api/*": {
-        "origins": "*",  # Change to your GitHub Pages URL in production
+        "origins": "*",
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type"]
     }
 })
 
 # Environment-based configuration
-# Set these as environment variables in production
 app.config['DATABASE'] = os.getenv('DATABASE_PATH', 'portfolio.db')
 app.config['ENV'] = os.getenv('FLASK_ENV', 'production')
 
@@ -55,17 +52,11 @@ def get_projects():
     GET /api/projects
     
     Returns all projects from the database.
-    Response format: {"projects": [...]}
-    
-    Status codes:
-    - 200: Success
-    - 500: Server error
     """
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Fetch all projects, ordered by most recent first
         cursor.execute('''
             SELECT id, title, description, tech_stack, github_url
             FROM projects
@@ -91,34 +82,62 @@ def get_projects():
         return jsonify({'error': 'Failed to fetch projects'}), 500
 
 
-@app.route('/api/projects', methods=['GET'])
-def get_projects():
+@app.route('/api/projects', methods=['POST'])
+def create_project():
+    """
+    POST /api/projects
+    
+    Creates a new project in the database.
+    """
     try:
-        with get_db_connection() as conn:  # ← Changed
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                SELECT id, title, description, tech_stack, github_url
-                FROM projects
-                ORDER BY id DESC
-            ''')
-            
-            projects = []
-            for row in cursor.fetchall():
-                projects.append({
-                    'id': row[0],
-                    'title': row[1],
-                    'description': row[2],
-                    'tech_stack': row[3],
-                    'github_url': row[4]
-                })
-        # conn.close() ← REMOVE THIS (context manager handles it)
+        data = request.get_json()
         
-        return jsonify({'projects': projects}), 200
+        # Validate required fields
+        required_fields = ['title', 'description', 'tech_stack']
+        for field in required_fields:
+            if not data.get(field) or not data.get(field).strip():
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Extract and sanitize data
+        title = data['title'].strip()
+        description = data['description'].strip()
+        tech_stack = data['tech_stack'].strip()
+        github_url = data.get('github_url', '').strip() or None
+        
+        # Additional validation
+        if len(title) > 200:
+            return jsonify({'error': 'Title too long (max 200 characters)'}), 400
+        
+        if len(description) > 2000:
+            return jsonify({'error': 'Description too long (max 2000 characters)'}), 400
+        
+        if len(tech_stack) > 300:
+            return jsonify({'error': 'Tech stack too long (max 300 characters)'}), 400
+        
+        if github_url and not github_url.startswith('http'):
+            return jsonify({'error': 'Invalid GitHub URL'}), 400
+        
+        # Insert into database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO projects (title, description, tech_stack, github_url)
+            VALUES (?, ?, ?, ?)
+        ''', (title, description, tech_stack, github_url))
+        
+        conn.commit()
+        project_id = cursor.lastrowid
+        conn.close()
+        
+        return jsonify({
+            'message': 'Project created successfully',
+            'project_id': project_id
+        }), 201
         
     except Exception as e:
-        app.logger.error(f"Error fetching projects: {str(e)}")
-        return jsonify({'error': 'Failed to fetch projects'}), 500
+        app.logger.error(f"Error creating project: {str(e)}")
+        return jsonify({'error': 'Failed to create project'}), 500
 
 
 @app.route('/api/contact', methods=['POST'])
@@ -127,18 +146,6 @@ def submit_contact():
     POST /api/contact
     
     Stores contact form submission in database.
-    
-    Expected JSON body:
-    {
-        "name": "Full Name",
-        "email": "email@example.com",
-        "message": "Message content"
-    }
-    
-    Status codes:
-    - 201: Created successfully
-    - 400: Invalid input
-    - 500: Server error
     """
     try:
         data = request.get_json()
@@ -164,11 +171,10 @@ def submit_contact():
         if len(message) > 1000:
             return jsonify({'error': 'Message too long (max 1000 characters)'}), 400
         
-        # Basic email format validation
         if '@' not in email or '.' not in email.split('@')[1]:
             return jsonify({'error': 'Invalid email format'}), 400
         
-        # Insert into database using parameterized query
+        # Insert into database
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -196,10 +202,7 @@ def health_check():
     """
     GET /api/health
     
-    Simple health check endpoint for deployment monitoring.
-    
-    Returns:
-    - 200: Service is healthy
+    Simple health check endpoint.
     """
     return jsonify({
         'status': 'healthy',
@@ -213,19 +216,16 @@ def health_check():
 
 @app.errorhandler(404)
 def not_found(error):
-    """Handle 404 errors"""
     return jsonify({'error': 'Endpoint not found'}), 404
 
 
 @app.errorhandler(405)
 def method_not_allowed(error):
-    """Handle 405 errors"""
     return jsonify({'error': 'Method not allowed'}), 405
 
 
 @app.errorhandler(500)
 def internal_error(error):
-    """Handle 500 errors"""
     return jsonify({'error': 'Internal server error'}), 500
 
 
@@ -234,13 +234,11 @@ def internal_error(error):
 # ===========================
 
 if __name__ == '__main__':
-    # Development server configuration
-    # In production, use a WSGI server like Gunicorn
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_ENV') == 'development'
     
     app.run(
-        host='0.0.0.0',  # Allow external connections
+        host='0.0.0.0',
         port=port,
         debug=debug
     )
