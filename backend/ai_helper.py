@@ -1,121 +1,125 @@
 """
-AI Helper using Free Hugging Face API
-Uses Meta's Llama model for text generation
+AI Helper using Free Groq API
+Much faster and more reliable than Hugging Face
 """
 
 import os
-import requests
-import json
+from groq import Groq
 
-HF_API_KEY = os.getenv('HUGGING_FACE_API_KEY')
-# Using Meta's Llama 2 - completely free!
-MODEL_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-2-7b-chat-hf"
-
-def query_llama(prompt, max_tokens=500):
-    """
-    Query Hugging Face's free Llama model
-    """
-    headers = {
-        "Authorization": f"Bearer {HF_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": max_tokens,
-            "temperature": 0.1,  # Low temperature for factual responses
-            "return_full_text": False
-        }
-    }
-    
-    try:
-        response = requests.post(MODEL_URL, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        result = response.json()
-        
-        if isinstance(result, list) and len(result) > 0:
-            return result[0].get('generated_text', '').strip()
-        return None
-        
-    except Exception as e:
-        print(f"Error calling Hugging Face API: {e}")
-        return None
-
+# Initialize Groq client
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 def create_sql_query(user_question):
     """
-    Convert natural language to SQL using free AI
+    Convert natural language to SQL using Groq's fast LLM
     """
     
-    prompt = f"""You are a SQL expert. Convert this question to a PostgreSQL SELECT query.
+    if not client:
+        print("ERROR: GROQ_API_KEY not set")
+        return None
+    
+    # Determine database type for correct placeholder syntax
+    DATABASE_URL = os.getenv('DATABASE_URL')
+    placeholder = '%s' if DATABASE_URL else '?'
+    
+    system_prompt = f"""You are a SQL expert. Convert questions to PostgreSQL SELECT queries.
 
 DATABASE SCHEMA:
 Table: projects
-Columns: id, title, description, tech_stack, github_url, created_at
+- id (integer)
+- title (varchar 200)
+- description (varchar 2000)
+- tech_stack (varchar 300)
+- github_url (varchar 300)
+- created_at (timestamp)
 
 RULES:
 1. ONLY generate SELECT queries
-2. Return ONLY the SQL query, nothing else
-3. If question is not about projects, return exactly: INVALID_QUESTION
+2. Return ONLY the SQL query, nothing else (no explanation)
+3. Use {placeholder} as placeholder (not ? or $1)
+4. For "how many" questions, use COUNT(*)
+5. For "most recent", use ORDER BY created_at DESC LIMIT 1
+6. For technology searches, use ILIKE '%technology%' on tech_stack or description
+7. If question is not about Konstantin's projects, return exactly: INVALID
 
-Question: {user_question}
+EXAMPLES:
+"How many projects?" -> SELECT COUNT(*) FROM projects
+"Projects with Python?" -> SELECT title FROM projects WHERE tech_stack ILIKE '%Python%'
+"Most recent project?" -> SELECT title, description FROM projects ORDER BY created_at DESC LIMIT 1
+"What's the weather?" -> INVALID"""
 
-SQL Query:"""
-
-    sql_query = query_llama(prompt, max_tokens=150)
-    
-    if not sql_query:
+    try:
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",  # Fast and accurate
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_question}
+            ],
+            temperature=0.1,
+            max_tokens=200
+        )
+        
+        sql_query = completion.choices[0].message.content.strip()
+        
+        print(f"AI generated SQL: {sql_query}")
+        
+        # Validate response
+        if 'INVALID' in sql_query.upper():
+            return None
+        
+        if sql_query.upper().startswith('SELECT'):
+            return sql_query
+        
+        print(f"Invalid SQL format: {sql_query}")
         return None
         
-    # Clean up the response
-    sql_query = sql_query.strip()
-    
-    # Validate it's a SELECT query
-    if sql_query.upper().startswith('SELECT'):
-        return sql_query
-    elif 'INVALID_QUESTION' in sql_query:
-        return None
-    else:
+    except Exception as e:
+        print(f"Error calling Groq API: {e}")
         return None
 
 
 def format_sql_results(user_question, results):
     """
-    Format SQL results into natural language
+    Format SQL results into natural language using Groq
     """
+    
+    if not client:
+        return "AI service not configured."
     
     if not results or len(results) == 0:
         results_text = "No results found"
     else:
-        results_text = str(results[:5])  # Limit to first 5 results
+        # Limit to first 5 results for readability
+        results_text = str(results[:5])
     
-    prompt = f"""You are a helpful assistant. Answer this question about Konstantin's portfolio projects.
+    system_prompt = """You are a helpful assistant answering questions about Konstantin Shtop's software engineering portfolio.
 
-Question: {user_question}
+Be friendly, concise (2-3 sentences max), and natural. If no results, say you couldn't find matching projects."""
+
+    user_prompt = f"""Question: {user_question}
+
 Database Results: {results_text}
 
-Provide a friendly, concise answer (2-3 sentences max). If no results, say you couldn't find matching projects.
+Provide a natural answer based on these results."""
 
-Answer:"""
-
-    answer = query_llama(prompt, max_tokens=200)
-    
-    if answer:
+    try:
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.3,
+            max_tokens=150
+        )
+        
+        answer = completion.choices[0].message.content.strip()
         return answer
-    else:
-        return "I found some results but had trouble formatting the response. Please try rephrasing your question."
-
-
-def get_schema_info():
-    """Returns database schema"""
-    return """
-    Table: projects
-    Columns:
-    - id: INTEGER
-    - title: VARCHAR(200)
-    - description: VARCHAR(2000)  
-    - tech_stack: VARCHAR(300)
-    - github_url: VARCHAR(300)
-    - created_at: TIMESTAMP
-    """
+        
+    except Exception as e:
+        print(f"Error formatting results: {e}")
+        if len(results) > 0:
+            return f"I found {len(results)} result(s) in Konstantin's portfolio."
+        else:
+            return "I couldn't find any matching projects in Konstantin's portfolio."
