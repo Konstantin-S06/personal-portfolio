@@ -31,6 +31,9 @@ psycopg[binary]==3.2.1
 # AI Integration with Hugging Face
 requests==2.31.0
 
+# AI Integration with Groq (fast and free)
+groq==0.11.0
+
 # ===========================
 # DEVELOPMENT DEPENDENCIES
 # ===========================
