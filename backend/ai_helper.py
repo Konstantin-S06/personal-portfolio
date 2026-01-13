@@ -1,29 +1,32 @@
 """
-AI Helper using Free Groq API
-Much faster and more reliable than Hugging Face
+AI Helper using Free Google Gemini API
+Completely free, unlimited, and very reliable
 """
 
 import os
-from groq import Groq
+import google.generativeai as genai
 
-# Initialize Groq client
-GROQ_API_KEY = os.getenv('GROQ_API_KEY')
-client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+# Configure Gemini
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    model = None
 
 def create_sql_query(user_question):
     """
-    Convert natural language to SQL using Groq's fast LLM
+    Convert natural language to SQL using Gemini
     """
     
-    if not client:
-        print("ERROR: GROQ_API_KEY not set")
+    if not model:
+        print("ERROR: GEMINI_API_KEY not set")
         return None
     
-    # Determine database type for correct placeholder syntax
+    # Determine database type
     DATABASE_URL = os.getenv('DATABASE_URL')
-    placeholder = '%s' if DATABASE_URL else '?'
     
-    system_prompt = f"""You are a SQL expert. Convert questions to PostgreSQL SELECT queries.
+    prompt = f"""You are a SQL expert. Convert this question to a PostgreSQL SELECT query.
 
 DATABASE SCHEMA:
 Table: projects
@@ -35,37 +38,46 @@ Table: projects
 - created_at (timestamp)
 
 RULES:
-1. ONLY generate SELECT queries
-2. Return ONLY the SQL query, nothing else (no explanation)
-3. Use {placeholder} as placeholder (not ? or $1)
-4. For "how many" questions, use COUNT(*)
-5. For "most recent", use ORDER BY created_at DESC LIMIT 1
-6. For technology searches, use ILIKE '%technology%' on tech_stack or description
-7. If question is not about Konstantin's projects, return exactly: INVALID
+1. Return ONLY the SQL query, nothing else
+2. ONLY generate SELECT queries (no INSERT, UPDATE, DELETE)
+3. For "how many" questions, use COUNT(*)
+4. For "most recent", use ORDER BY created_at DESC LIMIT 1
+5. For technology searches, use ILIKE '%technology%' on tech_stack or description
+6. If question is NOT about Konstantin's projects, return exactly: INVALID
 
 EXAMPLES:
-"How many projects?" -> SELECT COUNT(*) FROM projects
-"Projects with Python?" -> SELECT title FROM projects WHERE tech_stack ILIKE '%Python%'
-"Most recent project?" -> SELECT title, description FROM projects ORDER BY created_at DESC LIMIT 1
-"What's the weather?" -> INVALID"""
+Question: "How many projects?"
+Answer: SELECT COUNT(*) FROM projects
+
+Question: "Projects with Python?"
+Answer: SELECT title, description FROM projects WHERE tech_stack ILIKE '%Python%' OR description ILIKE '%Python%'
+
+Question: "Most recent project?"
+Answer: SELECT title, description FROM projects ORDER BY created_at DESC LIMIT 1
+
+Question: "What's the weather?"
+Answer: INVALID
+
+Now convert this question:
+"{user_question}"
+
+SQL Query:"""
 
     try:
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",  # Fast and accurate
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_question}
-            ],
-            temperature=0.1,
-            max_tokens=200
-        )
+        response = model.generate_content(prompt)
+        sql_query = response.text.strip()
         
-        sql_query = completion.choices[0].message.content.strip()
+        # Remove markdown code blocks if present
+        if '```sql' in sql_query:
+            sql_query = sql_query.split('```sql')[1].split('```')[0].strip()
+        elif '```' in sql_query:
+            sql_query = sql_query.split('```')[1].split('```')[0].strip()
         
-        print(f"AI generated SQL: {sql_query}")
+        print(f"Gemini generated SQL: {sql_query}")
         
         # Validate response
         if 'INVALID' in sql_query.upper():
+            print("Question is off-topic")
             return None
         
         if sql_query.upper().startswith('SELECT'):
@@ -75,46 +87,36 @@ EXAMPLES:
         return None
         
     except Exception as e:
-        print(f"Error calling Groq API: {e}")
+        print(f"Error calling Gemini API: {e}")
         return None
 
 
 def format_sql_results(user_question, results):
     """
-    Format SQL results into natural language using Groq
+    Format SQL results into natural language using Gemini
     """
     
-    if not client:
+    if not model:
         return "AI service not configured."
     
     if not results or len(results) == 0:
         results_text = "No results found"
     else:
-        # Limit to first 5 results for readability
+        # Limit to first 5 results
         results_text = str(results[:5])
     
-    system_prompt = """You are a helpful assistant answering questions about Konstantin Shtop's software engineering portfolio.
+    prompt = f"""You are answering a question about Konstantin Shtop's software engineering portfolio.
 
-Be friendly, concise (2-3 sentences max), and natural. If no results, say you couldn't find matching projects."""
-
-    user_prompt = f"""Question: {user_question}
-
+Question: {user_question}
 Database Results: {results_text}
 
-Provide a natural answer based on these results."""
+Provide a friendly, natural answer in 2-3 sentences. If no results, say you couldn't find matching projects.
+
+Answer:"""
 
     try:
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.3,
-            max_tokens=150
-        )
-        
-        answer = completion.choices[0].message.content.strip()
+        response = model.generate_content(prompt)
+        answer = response.text.strip()
         return answer
         
     except Exception as e:
