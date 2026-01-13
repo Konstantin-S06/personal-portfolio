@@ -83,7 +83,7 @@ INSTRUCTIONS:
 - Understand variations in phrasing (e.g., "used X for", "uses X", "with X", "X projects" all mean searching tech_stack for X)
 - For technology questions: search tech_stack column using ILIKE
 - For hackathon/achievement questions: search description and title for relevant keywords
-- For "all technologies" or "list technologies": SELECT DISTINCT tech_stack FROM projects (or SELECT tech_stack FROM projects)
+- For "all technologies" or "list technologies": SELECT tech_stack FROM projects (returns all tech_stack values)
 - For subjective questions like "most impressive": SELECT all projects (SELECT * FROM projects) to let analysis happen later
 - Be flexible with phrasing - understand the intent behind the question
 - Only return a SQL query if the question is about projects/portfolio - be creative in matching questions to queries
@@ -93,7 +93,7 @@ EXAMPLES:
 "How many projects use Python?" → SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%Python%'
 "How many projects has Konstantin used java for?" → SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%Java%'
 "how many projects use python" → SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%python%'
-"How many hackathons has Konstantin won?" → SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%win%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first%')
+"How many hackathons has Konstantin won?" → SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%winning%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first place%' OR description ILIKE '%1st place%' OR description ILIKE '%champion%')
 "What are all the technologies that Konstantin has used?" → SELECT tech_stack FROM projects
 "What is the most impressive project?" → SELECT title, description, tech_stack FROM projects
 "Python projects?" → SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%Python%'
@@ -176,27 +176,32 @@ def format_sql_results(user_question, results, sql_query=None):
     is_all_technologies = 'technolog' in question_lower and ('all' in question_lower or 'list' in question_lower or 'what are' in question_lower)
     is_impressive = 'impressive' in question_lower or 'best' in question_lower or 'favorite' in question_lower
     
-    prompt = f"""Analyze this question about Konstantin Shtop's portfolio projects and provide a clear, professional answer based on the database results.
+    # Build a more focused prompt based on question type
+    
+    if is_all_technologies:
+        prompt = f"""Question: {user_question}
+Database results (tech_stack from all projects): {results_text}
 
-Question: {user_question}
+Extract all unique technologies from the comma-separated tech_stack values. List them in a clear, comma-separated format.
+Example format: "Konstantin has used: Python, JavaScript, React, Flask, Node.js"
+Answer:"""
+    elif is_impressive:
+        prompt = f"""Question: {user_question}
+Database results (all projects): {results_text}
+
+Analyze the projects and identify the most impressive one based on complexity, technologies used, and descriptions. Name the project and give a brief reason (1-2 sentences).
+Answer:"""
+    elif is_count_query:
+        prompt = f"""Question: {user_question}
+Count result: {num_results}
+
+Provide a clear, direct answer stating the count. Be precise and factual.
+Answer:"""
+    else:
+        prompt = f"""Question: {user_question}
 Database results: {results_text}
 
-INSTRUCTIONS:
-- Provide a direct, informative answer (1-3 sentences for complex questions)
-- Be professional and concise - avoid excessive enthusiasm, asterisks, or emojis
-- If the question asks "how many", state the exact number clearly
-- If the question asks about "all technologies" or "technologies used":
-  * Extract unique technologies from the tech_stack data (they are comma-separated)
-  * List them clearly (e.g., "Konstantin has used: Python, JavaScript, React, Flask, etc.")
-- If the question asks about "most impressive" or "best" project:
-  * Analyze all the projects provided in the data
-  * Consider factors like complexity, technologies used, and descriptions
-  * Select and name the most impressive one with a brief reason
-- If listing projects, mention them by name
-- If no results found, simply state that no matching projects were found
-- Focus on factual information from the data
-- Answer naturally and conversationally, but professionally
-
+Provide a clear, professional answer based on the data (1-2 sentences). Be factual and concise.
 Answer:"""
 
     try:
@@ -204,10 +209,11 @@ Answer:"""
         max_tokens = 250 if (is_all_technologies or is_impressive) else 150
         answer = call_hf_api(prompt, max_tokens=max_tokens, temperature=0.7)
         
-        if answer:
+        if answer and answer.strip():
             logger.info(f"Formatted answer: {answer}")
-            return answer
+            return answer.strip()
         
+        logger.warning(f"API returned empty answer for question: {user_question}")
         # Fallback response if we couldn't extract the answer
         if num_results > 0:
             return f"I found {num_results} result(s) in Konstantin's portfolio projects."
