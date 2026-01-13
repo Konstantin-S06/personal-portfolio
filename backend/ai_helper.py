@@ -1,34 +1,91 @@
 """
-AI Helper using Free Google Gemini API
+AI Helper using Hugging Face Inference API
 Improved with better error handling and logging
 """
 
 import os
 import re
 import logging
-import google.generativeai as genai
+import requests
 
 # Set up logging - this will show in Render logs
 logger = logging.getLogger(__name__)
 
-# Configure Gemini
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    # Use gemma-3-12b model
-    model = genai.GenerativeModel('gemma-3-12b')
-    logger.info("Gemini model initialized successfully with gemma-3-12b")
+# Configure Hugging Face
+HF_API_KEY = os.getenv('HUGGINGFACE_API_KEY')
+HF_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
+HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
+
+if HF_API_KEY:
+    logger.info(f"Hugging Face API configured with model: {HF_MODEL}")
 else:
-    model = None
-    logger.error("GEMINI_API_KEY not set - model is None")
+    logger.error("HUGGINGFACE_API_KEY not set")
+
+def call_hf_api(prompt, max_length=200, temperature=0.1):
+    """
+    Call Hugging Face Inference API
+    """
+    if not HF_API_KEY:
+        logger.error("HUGGINGFACE_API_KEY not set")
+        return None
+    
+    headers = {
+        "Authorization": f"Bearer {HF_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": max_length,
+            "temperature": temperature,
+            "return_full_text": False
+        }
+    }
+    
+    try:
+        logger.info("Calling Hugging Face API...")
+        response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        # Handle different response formats
+        if isinstance(result, list) and len(result) > 0:
+            if "generated_text" in result[0]:
+                text = result[0]["generated_text"].strip()
+            elif "summary_text" in result[0]:
+                text = result[0]["summary_text"].strip()
+            else:
+                # Sometimes the text is directly in the list
+                text = str(result[0]).strip()
+        elif isinstance(result, dict):
+            if "generated_text" in result:
+                text = result["generated_text"].strip()
+            else:
+                text = str(result).strip()
+        else:
+            text = str(result).strip()
+        
+        logger.info(f"Got response from Hugging Face API: {text[:100]}...")
+        return text
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Hugging Face API call failed: {e}", exc_info=True)
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response status: {e.response.status_code}, body: {e.response.text}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error calling Hugging Face API: {e}", exc_info=True)
+        return None
 
 def create_sql_query(user_question):
     """
-    Convert natural language to SQL using Gemini
+    Convert natural language to SQL using Hugging Face
     """
     
-    if not model:
-        logger.error("GEMINI_API_KEY not set - model is None")
+    if not HF_API_KEY:
+        logger.error("HUGGINGFACE_API_KEY not set")
         return None
     
     logger.info(f"Creating SQL query for: {user_question}")
@@ -68,47 +125,13 @@ Question: {user_question}
 SQL:"""
 
     try:
-        logger.info("Calling Gemini API...")
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                'temperature': 0.1,  # Very low for consistent SQL
-                'max_output_tokens': 200
-            }
-        )
-        logger.info("Got response from Gemini API")
-        
-        # Handle response - try multiple ways to get the text
-        raw_response = None
-        try:
-            # Try the standard way first
-            raw_response = response.text.strip()
-            preview = raw_response[:100] if raw_response else "(empty)"
-            logger.info(f"Got response.text: {preview}...")
-        except AttributeError as attr_error:
-            logger.error(f"response.text failed (AttributeError): {attr_error}")
-            # Try alternative access methods
-            try:
-                if hasattr(response, 'candidates') and response.candidates:
-                    if hasattr(response.candidates[0], 'content'):
-                        if hasattr(response.candidates[0].content, 'parts'):
-                            raw_response = response.candidates[0].content.parts[0].text.strip()
-                            logger.info("Got response via candidates[0].content.parts[0].text")
-                if not raw_response:
-                    logger.error("Could not extract text from response using any method")
-                    return None
-            except Exception as alt_error:
-                logger.error(f"Alternative text extraction failed: {alt_error}", exc_info=True)
-                return None
-        except Exception as text_error:
-            logger.error(f"Failed to extract text from response: {text_error}", exc_info=True)
-            return None
+        raw_response = call_hf_api(prompt, max_length=200, temperature=0.1)
         
         if not raw_response:
-            logger.error("raw_response is empty or None")
+            logger.error("No response from Hugging Face API")
             return None
         
-        logger.info(f"Raw Gemini response (full): {raw_response}")
+        logger.info(f"Raw Hugging Face response (full): {raw_response}")
         
         # Clean up response - remove any markdown
         sql_query = raw_response
@@ -141,16 +164,16 @@ SQL:"""
         return None
         
     except Exception as e:
-        logger.error(f"Gemini API call failed: {e}", exc_info=True)
+        logger.error(f"Error in create_sql_query: {e}", exc_info=True)
         return None
 
 
 def format_sql_results(user_question, results):
     """
-    Format SQL results into natural language using Gemini
+    Format SQL results into natural language using Hugging Face
     """
     
-    if not model:
+    if not HF_API_KEY:
         return "AI service not configured."
     
     if not results or len(results) == 0:
@@ -178,32 +201,10 @@ INSTRUCTIONS:
 Answer:"""
 
     try:
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                'temperature': 0.7,  # More creative for natural language
-                'max_output_tokens': 150
-            }
-        )
-        
-        # Handle response - try multiple ways to get the text
-        answer = None
-        try:
-            answer = response.text.strip()
-            logger.info(f"Formatted answer: {answer}")
-        except AttributeError as attr_error:
-            logger.error(f"response.text failed in format_sql_results (AttributeError): {attr_error}")
-            # Try alternative access methods
-            try:
-                if hasattr(response, 'candidates') and response.candidates:
-                    if hasattr(response.candidates[0], 'content'):
-                        if hasattr(response.candidates[0].content, 'parts'):
-                            answer = response.candidates[0].content.parts[0].text.strip()
-                            logger.info("Got formatted answer via candidates[0].content.parts[0].text")
-            except Exception as alt_error:
-                logger.error(f"Alternative text extraction failed in format_sql_results: {alt_error}", exc_info=True)
+        answer = call_hf_api(prompt, max_length=150, temperature=0.7)
         
         if answer:
+            logger.info(f"Formatted answer: {answer}")
             return answer
         
         # Fallback response if we couldn't extract the answer

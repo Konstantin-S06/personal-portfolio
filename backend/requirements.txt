@@ -14,5 +14,5 @@ psycopg[binary]==3.2.1
 # Environment variable management
 python-dotenv==1.0.0
 
-# AI Integration - Google Gemini (free and unlimited!)
-google-generativeai>=0.8.3
+# AI Integration - Hugging Face Inference API
+requests>=2.31.0

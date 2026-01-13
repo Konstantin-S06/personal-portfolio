@@ -256,7 +256,7 @@ def verify_admin():
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """POST /api/chat - AI-powered chat using Google Gemini"""
+    """POST /api/chat - AI-powered chat using Hugging Face"""
     try:
         from ai_helper import create_sql_query, format_sql_results
         
@@ -312,7 +312,7 @@ def chat():
         
     except ImportError:
         return jsonify({
-            'answer': 'AI chat is not configured. Please set GEMINI_API_KEY.',
+            'answer': 'AI chat is not configured. Please set HUGGINGFACE_API_KEY.',
             'sql_query': None
         }), 200
     except Exception as e:
