@@ -70,34 +70,49 @@ def create_sql_query(user_question):
     DATABASE_URL = os.getenv('DATABASE_URL')
     
     # Improved prompt for better project name recognition and flexible searches
-    prompt = f"""Convert this question to a SQL SELECT query for a PostgreSQL database.
+    prompt = f"""You are a SQL query generator. Convert the user's question into a PostgreSQL SELECT query.
 
 TABLE: projects
 COLUMNS: id, title, description, tech_stack, github_url, created_at
 
-RULES:
-- Return ONLY the SQL query (no explanation, no markdown)
-- Use SELECT queries only
-- Use ILIKE for case-insensitive text searches
-- Search in title, description, AND tech_stack when looking for keywords
-- For project names: search title with ILIKE (e.g., "Wellspring" matches "Wellspring Attendance analysis")
-- For questions about achievements/hackathons: search description with ILIKE
-- For counting: SELECT COUNT(*) FROM projects
-- For newest: ORDER BY created_at DESC LIMIT 1
-- For listing: SELECT title, description, tech_stack FROM projects
-- Only return INVALID if completely unrelated to projects/portfolio
+CRITICAL RULES:
+1. If the question asks "how many" or "count", you MUST use: SELECT COUNT(*) FROM projects [WHERE clause if needed]
+2. Return ONLY the SQL query - no explanations, no markdown, no code blocks
+3. Use ILIKE for case-insensitive text matching (e.g., '%Python%' matches 'python', 'Python', 'PYTHON')
+4. For technology searches: use tech_stack ILIKE '%TechnologyName%'
+5. For hackathon/win questions: search description for 'hackathon', 'won', 'win', 'award', 'prize', 'first place', 'champion'
+6. For project name searches: use title ILIKE '%ProjectName%'
 
 EXAMPLES:
-"How many projects?" → SELECT COUNT(*) FROM projects
-"Python projects?" → SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%Python%'
-"Wellspring project?" → SELECT title, description, tech_stack FROM projects WHERE title ILIKE '%Wellspring%'
-"Hackathons?" → SELECT title, description, tech_stack FROM projects WHERE description ILIKE '%hackathon%' OR title ILIKE '%hackathon%'
-"Latest project?" → SELECT title, description, tech_stack FROM projects ORDER BY created_at DESC LIMIT 1
-"What uses React?" → SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%React%'
-"Weather forecast?" → INVALID
+Question: "How many projects?" 
+SQL: SELECT COUNT(*) FROM projects
 
+Question: "How many projects use Python?"
+SQL: SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%Python%'
+
+Question: "how many projects use python"
+SQL: SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%python%'
+
+Question: "How many hackathons has Konstantin won?"
+SQL: SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%win%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first place%' OR description ILIKE '%champion%')
+
+Question: "Python projects?"
+SQL: SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%Python%'
+
+Question: "Wellspring project?"
+SQL: SELECT title, description, tech_stack FROM projects WHERE title ILIKE '%Wellspring%'
+
+Question: "Latest project?"
+SQL: SELECT title, description, tech_stack FROM projects ORDER BY created_at DESC LIMIT 1
+
+Question: "What uses React?"
+SQL: SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%React%'
+
+Question: "Weather forecast?"
+SQL: INVALID
+
+Now convert this question:
 Question: {user_question}
-
 SQL:"""
 
     try:
@@ -144,7 +159,7 @@ SQL:"""
         return None
 
 
-def format_sql_results(user_question, results):
+def format_sql_results(user_question, results, sql_query=None):
     """
     Format SQL results into natural language using Hugging Face
     """
@@ -152,15 +167,23 @@ def format_sql_results(user_question, results):
     if not client:
         return "AI service not configured."
     
+    # Detect if this is a COUNT query
+    is_count_query = sql_query and 'COUNT(*)' in sql_query.upper()
+    
     if not results or len(results) == 0:
         results_text = "No results found in database"
         num_results = 0
     else:
-        num_results = len(results)
-        # Limit to first 5 results for readability
-        results_text = str(results[:5])
-    
-    logger.info(f"Formatting {num_results} results")
+        if is_count_query:
+            # For COUNT queries, extract the actual count value
+            num_results = results[0][0] if results[0] else 0
+            results_text = f"Count: {num_results}"
+            logger.info(f"COUNT query result: {num_results}")
+        else:
+            num_results = len(results)
+            # Limit to first 5 results for readability
+            results_text = str(results[:5])
+            logger.info(f"Formatting {num_results} results")
     
     prompt = f"""Answer this question about Konstantin Shtop's portfolio projects in a clear, professional manner.
 
@@ -170,9 +193,11 @@ Data from database: {results_text}
 INSTRUCTIONS:
 - Provide a direct, informative answer (1-2 sentences)
 - Be professional and concise - avoid excessive enthusiasm or asterisks
+- If the question asks "how many", state the exact number from the data (e.g., "Konstantin has X projects that use Python")
 - If listing projects, mention them by name
-- If no results, simply state that no matching projects were found
+- If no results (count is 0), simply state that no matching projects were found
 - Focus on factual information from the data
+- Do not add asterisks or excessive praise
 
 Answer:"""
 

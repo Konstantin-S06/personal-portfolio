@@ -301,8 +301,8 @@ def chat():
         
         conn.close()
         
-        # Format with AI
-        answer = format_sql_results(question, results)
+        # Format with AI - pass sql_query to help detect COUNT queries
+        answer = format_sql_results(question, results, sql_query)
         app.logger.info(f"Final answer: {answer}")
         
         return jsonify({
