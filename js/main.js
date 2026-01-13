@@ -184,6 +184,10 @@ async function submitProject() {
             document.getElementById('project-description').value = '';
             document.getElementById('project-tech').value = '';
             document.getElementById('project-github').value = '';
+            // Reload projects list if on admin page
+            if (typeof loadAdminProjects === 'function') {
+                loadAdminProjects();
+            }
         } else {
             showMessage(messageDiv, data.error || 'Failed to add project.', 'error');
         }
@@ -318,7 +322,118 @@ function isValidUrl(url) {
 // EXPORTS
 // ===========================
 
+/**
+ * Loads projects for admin page with delete functionality
+ */
+async function loadAdminProjects() {
+    const container = document.getElementById('projects-list-container');
+    const messageDiv = document.getElementById('projects-list-message');
+    
+    if (!container) return;
+    
+    try {
+        container.innerHTML = '<p>Loading projects...</p>';
+        
+        const response = await fetch(`${API_BASE_URL}/api/projects`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.projects && data.projects.length > 0) {
+            container.innerHTML = '';
+            
+            data.projects.forEach(project => {
+                const projectDiv = document.createElement('div');
+                projectDiv.className = 'admin-project-item';
+                projectDiv.style.cssText = 'border: 1px solid #e5e7eb; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: start;';
+                
+                const projectInfo = document.createElement('div');
+                projectInfo.style.cssText = 'flex: 1;';
+                
+                const title = document.createElement('h3');
+                title.textContent = project.title;
+                title.style.cssText = 'margin: 0 0 0.5rem 0; font-size: 1.125rem;';
+                
+                const description = document.createElement('p');
+                description.textContent = project.description.length > 150 
+                    ? project.description.substring(0, 150) + '...' 
+                    : project.description;
+                description.style.cssText = 'margin: 0 0 0.5rem 0; color: #6b7280; font-size: 0.875rem;';
+                
+                const techStack = document.createElement('p');
+                techStack.textContent = `Tech: ${project.tech_stack}`;
+                techStack.style.cssText = 'margin: 0; color: #6b7280; font-size: 0.875rem;';
+                
+                projectInfo.appendChild(title);
+                projectInfo.appendChild(description);
+                projectInfo.appendChild(techStack);
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.className = 'btn-primary';
+                deleteBtn.style.cssText = 'background: #ef4444; margin-left: 1rem; padding: 0.5rem 1rem;';
+                deleteBtn.onclick = () => deleteProject(project.id, project.title);
+                
+                projectDiv.appendChild(projectInfo);
+                projectDiv.appendChild(deleteBtn);
+                container.appendChild(projectDiv);
+            });
+        } else {
+            container.innerHTML = '<p>No projects yet. Add one below!</p>';
+        }
+        
+    } catch (err) {
+        console.error('Error loading projects:', err);
+        container.innerHTML = '<p style="color: #ef4444;">Error loading projects. Please try again.</p>';
+    }
+}
+
+/**
+ * Deletes a project by ID
+ */
+async function deleteProject(projectId, projectTitle) {
+    if (!confirm(`Are you sure you want to delete "${projectTitle}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    const messageDiv = document.getElementById('projects-list-message');
+    const container = document.getElementById('projects-list-container');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showMessage(messageDiv, 'Project deleted successfully!', 'success');
+            // Reload the projects list
+            loadAdminProjects();
+        } else {
+            showMessage(messageDiv, data.error || 'Failed to delete project.', 'error');
+        }
+        
+    } catch (err) {
+        console.error('Error deleting project:', err);
+        showMessage(messageDiv, 'Network error. Please check your connection and try again.', 'error');
+    }
+}
+
 // Make functions available globally for onclick handlers
 window.loadProjects = loadProjects;
+window.loadAdminProjects = loadAdminProjects;
 window.submitProject = submitProject;
 window.submitContactForm = submitContactForm;
+window.deleteProject = deleteProject;

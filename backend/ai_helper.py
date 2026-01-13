@@ -60,7 +60,21 @@ SQL:"""
             }
         )
         
-        raw_response = response.text.strip()
+        # Handle response - may raise exception if blocked/filtered
+        try:
+            raw_response = response.text.strip()
+        except Exception as text_error:
+            print(f"[ERROR] Failed to extract text from response: {text_error}")
+            # Try to get candidates if available
+            if hasattr(response, 'candidates') and response.candidates:
+                if hasattr(response.candidates[0], 'content'):
+                    raw_response = response.candidates[0].content.parts[0].text.strip()
+                else:
+                    print("[ERROR] Could not extract response text")
+                    return None
+            else:
+                return None
+        
         print(f"[DEBUG] Raw Gemini response: {raw_response}")
         
         # Clean up response - remove any markdown
@@ -95,6 +109,8 @@ SQL:"""
         
     except Exception as e:
         print(f"[ERROR] Gemini API call failed: {e}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         return None
 
 

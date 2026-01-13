@@ -18,7 +18,7 @@ app = Flask(__name__)
 CORS(app, resources={
     r"/api/*": {
         "origins": "*",
-        "methods": ["GET", "POST", "OPTIONS"],
+        "methods": ["GET", "POST", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type"]
     }
 })
@@ -124,6 +124,42 @@ def create_project():
         
     except Exception as e:
         app.logger.error(f"Error creating project: {str(e)}")
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+
+@app.route('/api/projects/<int:project_id>', methods=['DELETE'])
+def delete_project(project_id):
+    """DELETE /api/projects/<id> - Deletes a project"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if project exists
+        if DATABASE_URL:
+            cursor.execute('SELECT id FROM projects WHERE id = %s', (project_id,))
+        else:
+            cursor.execute('SELECT id FROM projects WHERE id = ?', (project_id,))
+        
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'error': 'Project not found'}), 404
+        
+        # Delete the project
+        if DATABASE_URL:
+            cursor.execute('DELETE FROM projects WHERE id = %s', (project_id,))
+        else:
+            cursor.execute('DELETE FROM projects WHERE id = ?', (project_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'message': 'Project deleted successfully',
+            'project_id': project_id
+        }), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error deleting project: {str(e)}")
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 
