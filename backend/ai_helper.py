@@ -69,49 +69,37 @@ def create_sql_query(user_question):
     # Determine database type
     DATABASE_URL = os.getenv('DATABASE_URL')
     
-    # Improved prompt for better project name recognition and flexible searches
-    prompt = f"""You are a SQL query generator. Convert the user's question into a PostgreSQL SELECT query.
+    # Flexible prompt that lets AI reason about questions
+    prompt = f"""You are a SQL query generator for a portfolio projects database. Analyze the question and generate an appropriate PostgreSQL SELECT query.
 
-TABLE: projects
-COLUMNS: id, title, description, tech_stack, github_url, created_at
+DATABASE SCHEMA:
+Table: projects
+Columns: id, title, description, tech_stack (comma-separated technologies), github_url, created_at
 
-CRITICAL RULES:
-1. If the question asks "how many" or "count", you MUST use: SELECT COUNT(*) FROM projects [WHERE clause if needed]
-2. Return ONLY the SQL query - no explanations, no markdown, no code blocks
-3. Use ILIKE for case-insensitive text matching (e.g., '%Python%' matches 'python', 'Python', 'PYTHON')
-4. For technology searches: use tech_stack ILIKE '%TechnologyName%'
-5. For hackathon/win questions: search description for 'hackathon', 'won', 'win', 'award', 'prize', 'first place', 'champion'
-6. For project name searches: use title ILIKE '%ProjectName%'
+INSTRUCTIONS:
+- Return ONLY the SQL query (no explanation, no markdown, no code blocks)
+- Use ILIKE for case-insensitive text searches with % wildcards
+- If the question asks "how many" or "count", use SELECT COUNT(*) FROM projects with appropriate WHERE clause
+- Understand variations in phrasing (e.g., "used X for", "uses X", "with X", "X projects" all mean searching tech_stack for X)
+- For technology questions: search tech_stack column using ILIKE
+- For hackathon/achievement questions: search description and title for relevant keywords
+- For "all technologies" or "list technologies": SELECT DISTINCT tech_stack FROM projects (or SELECT tech_stack FROM projects)
+- For subjective questions like "most impressive": SELECT all projects (SELECT * FROM projects) to let analysis happen later
+- Be flexible with phrasing - understand the intent behind the question
+- Only return a SQL query if the question is about projects/portfolio - be creative in matching questions to queries
 
 EXAMPLES:
-Question: "How many projects?" 
-SQL: SELECT COUNT(*) FROM projects
+"How many projects?" → SELECT COUNT(*) FROM projects
+"How many projects use Python?" → SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%Python%'
+"How many projects has Konstantin used java for?" → SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%Java%'
+"how many projects use python" → SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%python%'
+"How many hackathons has Konstantin won?" → SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%win%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first%')
+"What are all the technologies that Konstantin has used?" → SELECT tech_stack FROM projects
+"What is the most impressive project?" → SELECT title, description, tech_stack FROM projects
+"Python projects?" → SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%Python%'
+"Wellspring project?" → SELECT title, description, tech_stack FROM projects WHERE title ILIKE '%Wellspring%'
+"Latest project?" → SELECT title, description, tech_stack FROM projects ORDER BY created_at DESC LIMIT 1
 
-Question: "How many projects use Python?"
-SQL: SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%Python%'
-
-Question: "how many projects use python"
-SQL: SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%python%'
-
-Question: "How many hackathons has Konstantin won?"
-SQL: SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%win%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first place%' OR description ILIKE '%champion%')
-
-Question: "Python projects?"
-SQL: SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%Python%'
-
-Question: "Wellspring project?"
-SQL: SELECT title, description, tech_stack FROM projects WHERE title ILIKE '%Wellspring%'
-
-Question: "Latest project?"
-SQL: SELECT title, description, tech_stack FROM projects ORDER BY created_at DESC LIMIT 1
-
-Question: "What uses React?"
-SQL: SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%React%'
-
-Question: "Weather forecast?"
-SQL: INVALID
-
-Now convert this question:
 Question: {user_question}
 SQL:"""
 
@@ -140,17 +128,12 @@ SQL:"""
         sql_query = sql_query.split('\n')[0].strip()
         
         logger.info(f"Cleaned SQL: {sql_query}")
-        
-        # Check for off-topic
-        if 'INVALID' in sql_query.upper():
-            logger.warning("Question marked as INVALID (off-topic)")
-            return None
-        
+
         # Very flexible validation - just check if it's SQL-like
         if any(keyword in sql_query.upper() for keyword in ['SELECT', 'COUNT', 'FROM']):
             logger.info(f"Valid SQL detected: {sql_query}")
             return sql_query
-        
+
         logger.warning(f"Response doesn't look like SQL: {sql_query}")
         return None
         
@@ -167,8 +150,9 @@ def format_sql_results(user_question, results, sql_query=None):
     if not client:
         return "AI service not configured."
     
-    # Detect if this is a COUNT query
+    # Detect query type
     is_count_query = sql_query and 'COUNT(*)' in sql_query.upper()
+    is_tech_stack_query = sql_query and 'tech_stack' in sql_query.lower() and 'COUNT' not in sql_query.upper()
     
     if not results or len(results) == 0:
         results_text = "No results found in database"
@@ -181,28 +165,44 @@ def format_sql_results(user_question, results, sql_query=None):
             logger.info(f"COUNT query result: {num_results}")
         else:
             num_results = len(results)
-            # Limit to first 5 results for readability
-            results_text = str(results[:5])
+            # For better formatting, convert tuples to readable format
+            # Include all results (not just first 5) for comprehensive analysis
+            # Just use the raw results - the AI can parse them appropriately
+            results_text = str(results)
             logger.info(f"Formatting {num_results} results")
     
-    prompt = f"""Answer this question about Konstantin Shtop's portfolio projects in a clear, professional manner.
+    # Build prompt based on question type
+    question_lower = user_question.lower()
+    is_all_technologies = 'technolog' in question_lower and ('all' in question_lower or 'list' in question_lower or 'what are' in question_lower)
+    is_impressive = 'impressive' in question_lower or 'best' in question_lower or 'favorite' in question_lower
+    
+    prompt = f"""Analyze this question about Konstantin Shtop's portfolio projects and provide a clear, professional answer based on the database results.
 
 Question: {user_question}
-Data from database: {results_text}
+Database results: {results_text}
 
 INSTRUCTIONS:
-- Provide a direct, informative answer (1-2 sentences)
-- Be professional and concise - avoid excessive enthusiasm or asterisks
-- If the question asks "how many", state the exact number from the data (e.g., "Konstantin has X projects that use Python")
+- Provide a direct, informative answer (1-3 sentences for complex questions)
+- Be professional and concise - avoid excessive enthusiasm, asterisks, or emojis
+- If the question asks "how many", state the exact number clearly
+- If the question asks about "all technologies" or "technologies used":
+  * Extract unique technologies from the tech_stack data (they are comma-separated)
+  * List them clearly (e.g., "Konstantin has used: Python, JavaScript, React, Flask, etc.")
+- If the question asks about "most impressive" or "best" project:
+  * Analyze all the projects provided in the data
+  * Consider factors like complexity, technologies used, and descriptions
+  * Select and name the most impressive one with a brief reason
 - If listing projects, mention them by name
-- If no results (count is 0), simply state that no matching projects were found
+- If no results found, simply state that no matching projects were found
 - Focus on factual information from the data
-- Do not add asterisks or excessive praise
+- Answer naturally and conversationally, but professionally
 
 Answer:"""
 
     try:
-        answer = call_hf_api(prompt, max_tokens=150, temperature=0.7)
+        # Use higher max_tokens for complex questions like "all technologies" or "most impressive"
+        max_tokens = 250 if (is_all_technologies or is_impressive) else 150
+        answer = call_hf_api(prompt, max_tokens=max_tokens, temperature=0.7)
         
         if answer:
             logger.info(f"Formatted answer: {answer}")
