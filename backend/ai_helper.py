@@ -1,82 +1,58 @@
 """
-AI Helper using Hugging Face Inference API
+AI Helper using Hugging Face via OpenAI-compatible API
 Improved with better error handling and logging
 """
 
 import os
 import re
 import logging
-import requests
+from openai import OpenAI
 
 # Set up logging - this will show in Render logs
 logger = logging.getLogger(__name__)
 
-# Configure Hugging Face
-HF_API_KEY = os.getenv('HUGGINGFACE_API_KEY')
-HF_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
-HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}"
+# Configure Hugging Face via OpenAI-compatible API
+HF_API_KEY = os.getenv('HUGGINGFACE_API_KEY') or os.getenv('HF_TOKEN')
+HF_MODEL = "openai/gpt-oss-20b:groq"
 
 if HF_API_KEY:
+    client = OpenAI(
+        base_url="https://router.huggingface.co/v1",
+        api_key=HF_API_KEY,
+    )
     logger.info(f"Hugging Face API configured with model: {HF_MODEL}")
 else:
-    logger.error("HUGGINGFACE_API_KEY not set")
+    client = None
+    logger.error("HUGGINGFACE_API_KEY or HF_TOKEN not set")
 
-def call_hf_api(prompt, max_length=200, temperature=0.1):
+def call_hf_api(prompt, max_tokens=200, temperature=0.1):
     """
-    Call Hugging Face Inference API
+    Call Hugging Face API using OpenAI-compatible interface
     """
-    if not HF_API_KEY:
-        logger.error("HUGGINGFACE_API_KEY not set")
+    if not client:
+        logger.error("Hugging Face client not configured")
         return None
-    
-    headers = {
-        "Authorization": f"Bearer {HF_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": max_length,
-            "temperature": temperature,
-            "return_full_text": False
-        }
-    }
     
     try:
         logger.info("Calling Hugging Face API...")
-        response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
+        completion = client.chat.completions.create(
+            model=HF_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
         
-        result = response.json()
+        response_text = completion.choices[0].message.content.strip()
+        logger.info(f"Got response from Hugging Face API: {response_text[:100]}...")
+        return response_text
         
-        # Handle different response formats
-        if isinstance(result, list) and len(result) > 0:
-            if "generated_text" in result[0]:
-                text = result[0]["generated_text"].strip()
-            elif "summary_text" in result[0]:
-                text = result[0]["summary_text"].strip()
-            else:
-                # Sometimes the text is directly in the list
-                text = str(result[0]).strip()
-        elif isinstance(result, dict):
-            if "generated_text" in result:
-                text = result["generated_text"].strip()
-            else:
-                text = str(result).strip()
-        else:
-            text = str(result).strip()
-        
-        logger.info(f"Got response from Hugging Face API: {text[:100]}...")
-        return text
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Hugging Face API call failed: {e}", exc_info=True)
-        if hasattr(e, 'response') and e.response is not None:
-            logger.error(f"Response status: {e.response.status_code}, body: {e.response.text}")
-        return None
     except Exception as e:
-        logger.error(f"Unexpected error calling Hugging Face API: {e}", exc_info=True)
+        logger.error(f"Hugging Face API call failed: {e}", exc_info=True)
         return None
 
 def create_sql_query(user_question):
@@ -84,8 +60,8 @@ def create_sql_query(user_question):
     Convert natural language to SQL using Hugging Face
     """
     
-    if not HF_API_KEY:
-        logger.error("HUGGINGFACE_API_KEY not set")
+    if not client:
+        logger.error("Hugging Face client not configured")
         return None
     
     logger.info(f"Creating SQL query for: {user_question}")
@@ -125,7 +101,7 @@ Question: {user_question}
 SQL:"""
 
     try:
-        raw_response = call_hf_api(prompt, max_length=200, temperature=0.1)
+        raw_response = call_hf_api(prompt, max_tokens=200, temperature=0.1)
         
         if not raw_response:
             logger.error("No response from Hugging Face API")
@@ -173,7 +149,7 @@ def format_sql_results(user_question, results):
     Format SQL results into natural language using Hugging Face
     """
     
-    if not HF_API_KEY:
+    if not client:
         return "AI service not configured."
     
     if not results or len(results) == 0:
@@ -201,7 +177,7 @@ INSTRUCTIONS:
 Answer:"""
 
     try:
-        answer = call_hf_api(prompt, max_length=150, temperature=0.7)
+        answer = call_hf_api(prompt, max_tokens=150, temperature=0.7)
         
         if answer:
             logger.info(f"Formatted answer: {answer}")
