@@ -279,7 +279,7 @@ def chat():
         if sql_query is None:
             app.logger.warning("No SQL generated - question may be off-topic or API error occurred. Check ai_helper logs above for details.")
             return jsonify({
-                'answer': "I can only answer questions about Konstantin's portfolio projects. Try: 'How many projects?' or 'What uses Python?'",
+                'answer': "I can answer questions about Konstantin's portfolio projects. Try asking about specific projects, technologies used, or the number of projects.",
                 'sql_query': None
             }), 200
         

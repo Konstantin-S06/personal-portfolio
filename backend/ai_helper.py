@@ -36,7 +36,7 @@ def create_sql_query(user_question):
     # Determine database type
     DATABASE_URL = os.getenv('DATABASE_URL')
     
-    # Simpler, more direct prompt
+    # Improved prompt for better project name recognition and flexible searches
     prompt = f"""Convert this question to a SQL SELECT query for a PostgreSQL database.
 
 TABLE: projects
@@ -45,16 +45,23 @@ COLUMNS: id, title, description, tech_stack, github_url, created_at
 RULES:
 - Return ONLY the SQL query (no explanation, no markdown)
 - Use SELECT queries only
-- Use ILIKE for text searches
+- Use ILIKE for case-insensitive text searches
+- Search in title, description, AND tech_stack when looking for keywords
+- For project names: search title with ILIKE (e.g., "Wellspring" matches "Wellspring Attendance analysis")
+- For questions about achievements/hackathons: search description with ILIKE
 - For counting: SELECT COUNT(*) FROM projects
 - For newest: ORDER BY created_at DESC LIMIT 1
-- If not about projects, return: INVALID
+- For listing: SELECT title, description, tech_stack FROM projects
+- Only return INVALID if completely unrelated to projects/portfolio
 
 EXAMPLES:
 "How many projects?" → SELECT COUNT(*) FROM projects
-"Python projects?" → SELECT title FROM projects WHERE tech_stack ILIKE '%Python%'
-"Latest project?" → SELECT title, description FROM projects ORDER BY created_at DESC LIMIT 1
-"Weather?" → INVALID
+"Python projects?" → SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%Python%'
+"Wellspring project?" → SELECT title, description, tech_stack FROM projects WHERE title ILIKE '%Wellspring%'
+"Hackathons?" → SELECT title, description, tech_stack FROM projects WHERE description ILIKE '%hackathon%' OR title ILIKE '%hackathon%'
+"Latest project?" → SELECT title, description, tech_stack FROM projects ORDER BY created_at DESC LIMIT 1
+"What uses React?" → SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%React%'
+"Weather forecast?" → INVALID
 
 Question: {user_question}
 
@@ -156,12 +163,17 @@ def format_sql_results(user_question, results):
     
     logger.info(f"Formatting {num_results} results")
     
-    prompt = f"""Answer this question about Konstantin Shtop's portfolio in a friendly way (2-3 sentences).
+    prompt = f"""Answer this question about Konstantin Shtop's portfolio projects in a clear, professional manner.
 
 Question: {user_question}
 Data from database: {results_text}
 
-If no results, say you couldn't find matching projects. Be natural and conversational.
+INSTRUCTIONS:
+- Provide a direct, informative answer (1-2 sentences)
+- Be professional and concise - avoid excessive enthusiasm or asterisks
+- If listing projects, mention them by name
+- If no results, simply state that no matching projects were found
+- Focus on factual information from the data
 
 Answer:"""
 
