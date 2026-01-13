@@ -1,15 +1,5 @@
 """
 Flask Backend for Personal Portfolio
-
-This backend provides a RESTful API for managing portfolio projects
-and contact form submissions. It demonstrates production-ready practices:
-- Environment-based configuration
-- SQL injection prevention via parameterized queries
-- Input validation
-- Proper HTTP status codes
-- CORS handling for cross-origin requests
-- Clean separation of concerns
-
 Author: Konstantin Shtop
 """
 
@@ -25,7 +15,6 @@ from db import init_db, get_db_connection
 
 app = Flask(__name__)
 
-# CORS configuration
 CORS(app, resources={
     r"/api/*": {
         "origins": "*",
@@ -34,7 +23,6 @@ CORS(app, resources={
     }
 })
 
-# Environment-based configuration
 app.config['DATABASE'] = os.getenv('DATABASE_PATH', 'portfolio.db')
 app.config['ENV'] = os.getenv('FLASK_ENV', 'production')
 
@@ -42,17 +30,16 @@ app.config['ENV'] = os.getenv('FLASK_ENV', 'production')
 with app.app_context():
     init_db()
 
+# Check database type once
+DATABASE_URL = os.getenv('DATABASE_URL')
+
 # ===========================
 # API ROUTES
 # ===========================
 
 @app.route('/api/projects', methods=['GET'])
 def get_projects():
-    """
-    GET /api/projects
-    
-    Returns all projects from the database.
-    """
+    """GET /api/projects - Returns all projects"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -74,7 +61,6 @@ def get_projects():
             })
         
         conn.close()
-        
         return jsonify({'projects': projects}), 200
         
     except Exception as e:
@@ -84,11 +70,7 @@ def get_projects():
 
 @app.route('/api/projects', methods=['POST'])
 def create_project():
-    """
-    POST /api/projects
-    
-    Creates a new project in the database.
-    """
+    """POST /api/projects - Creates a new project"""
     try:
         data = request.get_json()
         
@@ -98,40 +80,34 @@ def create_project():
             if not data.get(field) or not data.get(field).strip():
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        # Extract and sanitize data
+        # Extract and sanitize
         title = data['title'].strip()
         description = data['description'].strip()
         tech_stack = data['tech_stack'].strip()
         github_url = data.get('github_url', '').strip() or None
         
-        # Additional validation
+        # Validation
         if len(title) > 200:
-            return jsonify({'error': 'Title too long (max 200 characters)'}), 400
-        
+            return jsonify({'error': 'Title too long'}), 400
         if len(description) > 2000:
-            return jsonify({'error': 'Description too long (max 2000 characters)'}), 400
-        
+            return jsonify({'error': 'Description too long'}), 400
         if len(tech_stack) > 300:
-            return jsonify({'error': 'Tech stack too long (max 300 characters)'}), 400
-        
+            return jsonify({'error': 'Tech stack too long'}), 400
         if github_url and not github_url.startswith('http'):
             return jsonify({'error': 'Invalid GitHub URL'}), 400
         
-        # Insert into database
+        # Insert with correct placeholder syntax
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Check if using PostgreSQL or SQLite
-        DATABASE_URL = os.getenv('DATABASE_URL')
-
         if DATABASE_URL:
-            # PostgreSQL uses %s placeholders
+            # PostgreSQL
             cursor.execute('''
                 INSERT INTO projects (title, description, tech_stack, github_url)
                 VALUES (%s, %s, %s, %s)
             ''', (title, description, tech_stack, github_url))
         else:
-            # SQLite uses ? placeholders
+            # SQLite
             cursor.execute('''
                 INSERT INTO projects (title, description, tech_stack, github_url)
                 VALUES (?, ?, ?, ?)
@@ -148,51 +124,45 @@ def create_project():
         
     except Exception as e:
         app.logger.error(f"Error creating project: {str(e)}")
-        return jsonify({'error': 'Failed to create project'}), 500
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 
 @app.route('/api/contact', methods=['POST'])
 def submit_contact():
-    """
-    POST /api/contact
-    
-    Stores contact form submission in database.
-    """
+    """POST /api/contact - Stores contact form"""
     try:
         data = request.get_json()
         
-        # Validate required fields
         required_fields = ['name', 'email', 'message']
         for field in required_fields:
             if not data.get(field) or not data.get(field).strip():
-                return jsonify({'error': f'Missing required field: {field}'}), 400
+                return jsonify({'error': f'Missing field: {field}'}), 400
         
-        # Extract and sanitize data
         name = data['name'].strip()
         email = data['email'].strip()
         message = data['message'].strip()
         
-        # Additional validation
-        if len(name) > 100:
-            return jsonify({'error': 'Name too long (max 100 characters)'}), 400
+        if len(name) > 100 or len(email) > 100 or len(message) > 1000:
+            return jsonify({'error': 'Input too long'}), 400
         
-        if len(email) > 100:
-            return jsonify({'error': 'Email too long (max 100 characters)'}), 400
+        if '@' not in email:
+            return jsonify({'error': 'Invalid email'}), 400
         
-        if len(message) > 1000:
-            return jsonify({'error': 'Message too long (max 1000 characters)'}), 400
-        
-        if '@' not in email or '.' not in email.split('@')[1]:
-            return jsonify({'error': 'Invalid email format'}), 400
-        
-        # Insert into database
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute('''
-            INSERT INTO contacts (name, email, message)
-            VALUES (?, ?, ?)
-        ''', (name, email, message))
+        if DATABASE_URL:
+            # PostgreSQL
+            cursor.execute('''
+                INSERT INTO contacts (name, email, message)
+                VALUES (%s, %s, %s)
+            ''', (name, email, message))
+        else:
+            # SQLite
+            cursor.execute('''
+                INSERT INTO contacts (name, email, message)
+                VALUES (?, ?, ?)
+            ''', (name, email, message))
         
         conn.commit()
         contact_id = cursor.lastrowid
@@ -204,49 +174,13 @@ def submit_contact():
         }), 201
         
     except Exception as e:
-        app.logger.error(f"Error submitting contact form: {str(e)}")
+        app.logger.error(f"Error submitting contact: {str(e)}")
         return jsonify({'error': 'Failed to submit contact form'}), 500
 
 
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """
-    GET /api/health
-    
-    Simple health check endpoint.
-    """
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.utcnow().isoformat()
-    }), 200
-
-
-# ===========================
-# ERROR HANDLERS
-# ===========================
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({'error': 'Endpoint not found'}), 404
-
-
-@app.errorhandler(405)
-def method_not_allowed(error):
-    return jsonify({'error': 'Method not allowed'}), 405
-
-
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({'error': 'Internal server error'}), 500
-
 @app.route('/api/admin/verify', methods=['POST'])
 def verify_admin():
-    """
-    POST /api/admin/verify
-    
-    Verifies admin password.
-    Returns a simple token on success.
-    """
+    """POST /api/admin/verify - Verifies admin password"""
     try:
         data = request.get_json()
         
@@ -257,8 +191,6 @@ def verify_admin():
         correct_password = os.getenv('ADMIN_PASSWORD', 'default_password_change_me')
         
         if submitted_password == correct_password:
-            # Generate a simple session token (timestamp-based)
-            # In production, this would be a JWT token
             import time
             import hashlib
             
@@ -266,76 +198,108 @@ def verify_admin():
                 f"{correct_password}_{int(time.time())}".encode()
             ).hexdigest()[:32]
             
-            return jsonify({
-                'success': True,
-                'token': token
-            }), 200
+            return jsonify({'success': True, 'token': token}), 200
         else:
             return jsonify({'error': 'Invalid password'}), 401
             
     except Exception as e:
         app.logger.error(f"Error verifying admin: {str(e)}")
         return jsonify({'error': 'Verification failed'}), 500
-    
 
-from ai_helper import create_sql_query, format_sql_results
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """
-    AI-powered chat endpoint using free Hugging Face API
-    """
+    """POST /api/chat - AI-powered chat using Google Gemini"""
     try:
+        from ai_helper import create_sql_query, format_sql_results
+        
         data = request.get_json()
         
         if not data.get('question') or not data.get('question').strip():
             return jsonify({'error': 'Question is required'}), 400
         
         question = data['question'].strip()
+        app.logger.info(f"Chat question: {question}")
         
         if len(question) > 500:
             return jsonify({'error': 'Question too long'}), 400
         
-        # Convert to SQL using free AI
+        # Convert to SQL using Gemini
         sql_query = create_sql_query(question)
+        app.logger.info(f"Generated SQL: {sql_query}")
         
         if sql_query is None:
+            app.logger.warning("No SQL generated - question may be off-topic")
             return jsonify({
-                'answer': "I can only answer questions about Konstantin's portfolio projects. Try asking about his projects or technologies!"
+                'answer': "I can only answer questions about Konstantin's portfolio projects. Try: 'How many projects?' or 'What uses Python?'",
+                'sql_query': None
             }), 200
         
         # Execute query
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(sql_query)
-        results = cursor.fetchall()
+        
+        try:
+            cursor.execute(sql_query)
+            results = cursor.fetchall()
+            app.logger.info(f"Query returned {len(results)} results")
+        except Exception as sql_error:
+            app.logger.error(f"SQL execution error: {sql_error}")
+            conn.close()
+            return jsonify({
+                'answer': "I had trouble with that question. Try: 'How many projects?' or 'List all projects'",
+                'sql_query': sql_query
+            }), 200
+        
         conn.close()
         
         # Format with AI
         answer = format_sql_results(question, results)
+        app.logger.info(f"Final answer: {answer}")
         
         return jsonify({
             'answer': answer,
             'sql_query': sql_query
         }), 200
         
+    except ImportError:
+        return jsonify({
+            'answer': 'AI chat is not configured. Please set GEMINI_API_KEY.',
+            'sql_query': None
+        }), 200
     except Exception as e:
         app.logger.error(f"Chat error: {str(e)}")
         return jsonify({
-            'answer': 'Sorry, I encountered an error. Please try again.'
+            'answer': 'Sorry, I encountered an error. Please try again.',
+            'sql_query': None
         }), 200
 
 
-# ===========================
-# APPLICATION ENTRY POINT
-# ===========================
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """GET /api/health - Health check"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.utcnow().isoformat()
+    }), 200
+
+
+# Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Endpoint not found'}), 404
+
+@app.errorhandler(405)
+def method_not_allowed(error):
+    return jsonify({'error': 'Method not allowed'}), 405
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Internal server error'}), 500
+
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_ENV') == 'development'
     
-    app.run(
-        host='0.0.0.0',
-        port=port,
-        debug=debug
-    )
+    app.run(host='0.0.0.0', port=port, debug=debug)
