@@ -102,7 +102,7 @@ SQL:"""
             logger.error("raw_response is empty or None")
             return None
         
-        logger.info(f"Raw Gemini response: {raw_response}")
+        logger.info(f"Raw Gemini response (full): {raw_response}")
         
         # Clean up response - remove any markdown
         sql_query = raw_response

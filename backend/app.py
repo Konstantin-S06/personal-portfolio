@@ -272,11 +272,12 @@ def chat():
             return jsonify({'error': 'Question too long'}), 400
         
         # Convert to SQL using Gemini
+        app.logger.info(f"About to call create_sql_query with question: '{question}'")
         sql_query = create_sql_query(question)
-        app.logger.info(f"Generated SQL: {sql_query}")
+        app.logger.info(f"create_sql_query returned: {sql_query}")
         
         if sql_query is None:
-            app.logger.warning("No SQL generated - question may be off-topic or API error occurred. Check logs for details.")
+            app.logger.warning("No SQL generated - question may be off-topic or API error occurred. Check ai_helper logs above for details.")
             return jsonify({
                 'answer': "I can only answer questions about Konstantin's portfolio projects. Try: 'How many projects?' or 'What uses Python?'",
                 'sql_query': None
