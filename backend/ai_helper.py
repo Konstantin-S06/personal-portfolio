@@ -94,6 +94,7 @@ EXAMPLES:
 "How many projects has Konstantin used java for?" → SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%Java%'
 "how many projects use python" → SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%python%'
 "How many hackathons has Konstantin won?" → SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%winning%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first place%' OR description ILIKE '%1st place%' OR description ILIKE '%champion%')
+"how many hackathon wins" → SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%winning%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first place%' OR description ILIKE '%1st place%' OR description ILIKE '%champion%')
 "What are all the technologies that Konstantin has used?" → SELECT tech_stack FROM projects
 "What is the most impressive project?" → SELECT title, description, tech_stack FROM projects
 "Python projects?" → SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%Python%'
@@ -144,86 +145,80 @@ SQL:"""
 
 def format_sql_results(user_question, results, sql_query=None):
     """
-    Format SQL results into natural language using Hugging Face
+    Format SQL results into natural language - simplified with direct formatting
     """
     
-    if not client:
-        return "AI service not configured."
+    if not results or len(results) == 0:
+        return "No matching projects were found."
     
     # Detect query type
     is_count_query = sql_query and 'COUNT(*)' in sql_query.upper()
-    is_tech_stack_query = sql_query and 'tech_stack' in sql_query.lower() and 'COUNT' not in sql_query.upper()
-    
-    if not results or len(results) == 0:
-        results_text = "No results found in database"
-        num_results = 0
-    else:
-        if is_count_query:
-            # For COUNT queries, extract the actual count value
-            num_results = results[0][0] if results[0] else 0
-            results_text = f"Count: {num_results}"
-            logger.info(f"COUNT query result: {num_results}")
-        else:
-            num_results = len(results)
-            # For better formatting, convert tuples to readable format
-            # Include all results (not just first 5) for comprehensive analysis
-            # Just use the raw results - the AI can parse them appropriately
-            results_text = str(results)
-            logger.info(f"Formatting {num_results} results")
-    
-    # Build prompt based on question type
     question_lower = user_question.lower()
-    is_all_technologies = 'technolog' in question_lower and ('all' in question_lower or 'list' in question_lower or 'what are' in question_lower)
-    is_impressive = 'impressive' in question_lower or 'best' in question_lower or 'favorite' in question_lower
+    is_all_technologies = 'technolog' in question_lower and ('all' in question_lower or 'list' in question_lower)
     
-    # Build a more focused prompt based on question type
+    # Handle COUNT queries directly - no AI needed
+    if is_count_query:
+        count = results[0][0] if results[0] else 0
+        logger.info(f"COUNT query result: {count}")
+        
+        # Format based on question context
+        if 'hackathon' in question_lower and ('won' in question_lower or 'win' in question_lower):
+            return f"Konstantin has won {count} hackathon{'s' if count != 1 else ''}."
+        elif 'project' in question_lower:
+            return f"Konstantin has {count} project{'s' if count != 1 else ''}."
+        else:
+            return f"{count}"
     
+    # Handle "all technologies" queries directly
     if is_all_technologies:
-        prompt = f"""Question: {user_question}
-Database results (tech_stack from all projects): {results_text}
-
-Extract all unique technologies from the comma-separated tech_stack values. List them in a clear, comma-separated format.
-Example format: "Konstantin has used: Python, JavaScript, React, Flask, Node.js"
-Answer:"""
-    elif is_impressive:
-        prompt = f"""Question: {user_question}
-Database results (all projects): {results_text}
-
-Analyze the projects and identify the most impressive one based on complexity, technologies used, and descriptions. Name the project and give a brief reason (1-2 sentences).
-Answer:"""
-    elif is_count_query:
-        prompt = f"""Question: {user_question}
-Count result: {num_results}
-
-Provide a clear, direct answer stating the count. Be precise and factual.
-Answer:"""
-    else:
-        prompt = f"""Question: {user_question}
-Database results: {results_text}
-
-Provide a clear, professional answer based on the data (1-2 sentences). Be factual and concise.
-Answer:"""
-
+        # Extract all technologies from tech_stack results
+        all_techs = set()
+        for row in results:
+            if isinstance(row, tuple) and len(row) > 0:
+                tech_stack = row[0] if row[0] else ""
+            else:
+                tech_stack = str(row)
+            
+            # Split comma-separated technologies
+            techs = [t.strip() for t in str(tech_stack).split(',') if t.strip()]
+            all_techs.update(techs)
+        
+        if all_techs:
+            tech_list = sorted(list(all_techs))
+            return f"Konstantin has used: {', '.join(tech_list)}"
+        else:
+            return "No technologies found."
+    
+    # For other queries, try AI but with a simple fallback
+    if not client:
+        # Fallback: list project titles
+        titles = []
+        for row in results[:5]:  # Limit to 5
+            if isinstance(row, tuple) and len(row) > 0:
+                titles.append(str(row[0]))
+        if titles:
+            return f"Found {len(results)} project(s): {', '.join(titles)}"
+        return f"Found {len(results)} result(s)."
+    
+    # Try AI formatting with simple prompt
     try:
-        # Use higher max_tokens for complex questions like "all technologies" or "most impressive"
-        max_tokens = 250 if (is_all_technologies or is_impressive) else 150
-        answer = call_hf_api(prompt, max_tokens=max_tokens, temperature=0.7)
+        results_text = str(results[:10])  # Limit for prompt size
+        prompt = f"""Question: {user_question}
+Data: {results_text}
+
+Answer the question concisely (1-2 sentences):"""
         
+        answer = call_hf_api(prompt, max_tokens=150, temperature=0.7)
         if answer and answer.strip():
-            logger.info(f"Formatted answer: {answer}")
             return answer.strip()
-        
-        logger.warning(f"API returned empty answer for question: {user_question}")
-        # Fallback response if we couldn't extract the answer
-        if num_results > 0:
-            return f"I found {num_results} result(s) in Konstantin's portfolio projects."
-        else:
-            return "I couldn't find any matching projects in Konstantin's portfolio."
-        
     except Exception as e:
-        logger.error(f"Failed to format results: {e}", exc_info=True)
-        # Fallback response
-        if num_results > 0:
-            return f"I found {num_results} result(s) in Konstantin's portfolio projects."
-        else:
-            return "I couldn't find any matching projects in Konstantin's portfolio."
+        logger.error(f"AI formatting failed: {e}")
+    
+    # Final fallback: list project titles
+    titles = []
+    for row in results[:5]:
+        if isinstance(row, tuple) and len(row) > 0:
+            titles.append(str(row[0]))
+    if titles:
+        return f"Found {len(results)} project(s): {', '.join(titles)}"
+    return f"Found {len(results)} result(s)."
