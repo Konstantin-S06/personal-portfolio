@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
-    # Use gemini-2.5-flash-lite - best free option
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
-    logger.info("Gemini model initialized successfully with gemini-2.5-flash-lite")
+    # Use gemma-3-2b model
+    model = genai.GenerativeModel('gemma-3-2b')
+    logger.info("Gemini model initialized successfully with gemma-3-2b")
 else:
     model = None
     logger.error("GEMINI_API_KEY not set - model is None")
