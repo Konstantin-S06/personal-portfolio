@@ -5,15 +5,21 @@ Improved with better error handling and logging
 
 import os
 import re
+import logging
 import google.generativeai as genai
+
+# Set up logging - this will show in Render logs
+logger = logging.getLogger(__name__)
 
 # Configure Gemini
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash')
+    logger.info("Gemini model initialized successfully")
 else:
     model = None
+    logger.error("GEMINI_API_KEY not set - model is None")
 
 def create_sql_query(user_question):
     """
@@ -21,10 +27,10 @@ def create_sql_query(user_question):
     """
     
     if not model:
-        print("[ERROR] GEMINI_API_KEY not set - model is None")
+        logger.error("GEMINI_API_KEY not set - model is None")
         return None
     
-    print(f"[DEBUG] Creating SQL query for: {user_question}")
+    logger.info(f"Creating SQL query for: {user_question}")
     
     # Determine database type
     DATABASE_URL = os.getenv('DATABASE_URL')
@@ -54,7 +60,7 @@ Question: {user_question}
 SQL:"""
 
     try:
-        print("[DEBUG] Calling Gemini API...")
+        logger.info("Calling Gemini API...")
         response = model.generate_content(
             prompt,
             generation_config={
@@ -62,7 +68,7 @@ SQL:"""
                 'max_output_tokens': 200
             }
         )
-        print("[DEBUG] Got response from Gemini API")
+        logger.info("Got response from Gemini API")
         
         # Handle response - try multiple ways to get the text
         raw_response = None
@@ -70,33 +76,31 @@ SQL:"""
             # Try the standard way first
             raw_response = response.text.strip()
             preview = raw_response[:100] if raw_response else "(empty)"
-            print(f"[DEBUG] Got response.text: {preview}...")
+            logger.info(f"Got response.text: {preview}...")
         except AttributeError as attr_error:
-            print(f"[ERROR] response.text failed (AttributeError): {attr_error}")
+            logger.error(f"response.text failed (AttributeError): {attr_error}")
             # Try alternative access methods
             try:
                 if hasattr(response, 'candidates') and response.candidates:
                     if hasattr(response.candidates[0], 'content'):
                         if hasattr(response.candidates[0].content, 'parts'):
                             raw_response = response.candidates[0].content.parts[0].text.strip()
-                            print(f"[DEBUG] Got response via candidates[0].content.parts[0].text")
+                            logger.info("Got response via candidates[0].content.parts[0].text")
                 if not raw_response:
-                    print("[ERROR] Could not extract text from response using any method")
+                    logger.error("Could not extract text from response using any method")
                     return None
             except Exception as alt_error:
-                print(f"[ERROR] Alternative text extraction failed: {alt_error}")
+                logger.error(f"Alternative text extraction failed: {alt_error}", exc_info=True)
                 return None
         except Exception as text_error:
-            print(f"[ERROR] Failed to extract text from response: {text_error}")
-            import traceback
-            print(f"[ERROR] Traceback: {traceback.format_exc()}")
+            logger.error(f"Failed to extract text from response: {text_error}", exc_info=True)
             return None
         
         if not raw_response:
-            print("[ERROR] raw_response is empty or None")
+            logger.error("raw_response is empty or None")
             return None
         
-        print(f"[DEBUG] Raw Gemini response: {raw_response}")
+        logger.info(f"Raw Gemini response: {raw_response}")
         
         # Clean up response - remove any markdown
         sql_query = raw_response
@@ -113,25 +117,23 @@ SQL:"""
         # Remove any trailing explanation
         sql_query = sql_query.split('\n')[0].strip()
         
-        print(f"[DEBUG] Cleaned SQL: {sql_query}")
+        logger.info(f"Cleaned SQL: {sql_query}")
         
         # Check for off-topic
         if 'INVALID' in sql_query.upper():
-            print("[DEBUG] Question marked as INVALID (off-topic)")
+            logger.warning("Question marked as INVALID (off-topic)")
             return None
         
         # Very flexible validation - just check if it's SQL-like
         if any(keyword in sql_query.upper() for keyword in ['SELECT', 'COUNT', 'FROM']):
-            print(f"[DEBUG] Valid SQL detected: {sql_query}")
+            logger.info(f"Valid SQL detected: {sql_query}")
             return sql_query
         
-        print(f"[DEBUG] Response doesn't look like SQL: {sql_query}")
+        logger.warning(f"Response doesn't look like SQL: {sql_query}")
         return None
         
     except Exception as e:
-        print(f"[ERROR] Gemini API call failed: {e}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        logger.error(f"Gemini API call failed: {e}", exc_info=True)
         return None
 
 
@@ -151,7 +153,7 @@ def format_sql_results(user_question, results):
         # Limit to first 5 results for readability
         results_text = str(results[:5])
     
-    print(f"[DEBUG] Formatting {num_results} results")
+    logger.info(f"Formatting {num_results} results")
     
     prompt = f"""Answer this question about Konstantin Shtop's portfolio in a friendly way (2-3 sentences).
 
@@ -175,18 +177,18 @@ Answer:"""
         answer = None
         try:
             answer = response.text.strip()
-            print(f"[DEBUG] Formatted answer: {answer}")
+            logger.info(f"Formatted answer: {answer}")
         except AttributeError as attr_error:
-            print(f"[ERROR] response.text failed in format_sql_results (AttributeError): {attr_error}")
+            logger.error(f"response.text failed in format_sql_results (AttributeError): {attr_error}")
             # Try alternative access methods
             try:
                 if hasattr(response, 'candidates') and response.candidates:
                     if hasattr(response.candidates[0], 'content'):
                         if hasattr(response.candidates[0].content, 'parts'):
                             answer = response.candidates[0].content.parts[0].text.strip()
-                            print(f"[DEBUG] Got formatted answer via candidates[0].content.parts[0].text")
+                            logger.info("Got formatted answer via candidates[0].content.parts[0].text")
             except Exception as alt_error:
-                print(f"[ERROR] Alternative text extraction failed in format_sql_results: {alt_error}")
+                logger.error(f"Alternative text extraction failed in format_sql_results: {alt_error}", exc_info=True)
         
         if answer:
             return answer
@@ -198,9 +200,7 @@ Answer:"""
             return "I couldn't find any matching projects in Konstantin's portfolio."
         
     except Exception as e:
-        print(f"[ERROR] Failed to format results: {e}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        logger.error(f"Failed to format results: {e}", exc_info=True)
         # Fallback response
         if num_results > 0:
             return f"I found {num_results} result(s) in Konstantin's portfolio projects."

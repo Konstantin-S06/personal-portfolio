@@ -4,6 +4,7 @@ Author: Konstantin Shtop
 """
 
 import os
+import logging
 from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -14,6 +15,12 @@ from db import init_db, get_db_connection
 # ===========================
 
 app = Flask(__name__)
+
+# Configure logging to show INFO level and above
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 CORS(app, resources={
     r"/api/*": {
