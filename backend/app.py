@@ -101,20 +101,22 @@ def create_project():
         cursor = conn.cursor()
         
         if DATABASE_URL:
-            # PostgreSQL
+            # PostgreSQL - use RETURNING to get the ID
             cursor.execute('''
                 INSERT INTO projects (title, description, tech_stack, github_url)
                 VALUES (%s, %s, %s, %s)
+                RETURNING id
             ''', (title, description, tech_stack, github_url))
+            project_id = cursor.fetchone()[0]
         else:
             # SQLite
             cursor.execute('''
                 INSERT INTO projects (title, description, tech_stack, github_url)
                 VALUES (?, ?, ?, ?)
             ''', (title, description, tech_stack, github_url))
+            project_id = cursor.lastrowid
         
         conn.commit()
-        project_id = cursor.lastrowid
         conn.close()
         
         return jsonify({
@@ -188,20 +190,22 @@ def submit_contact():
         cursor = conn.cursor()
         
         if DATABASE_URL:
-            # PostgreSQL
+            # PostgreSQL - use RETURNING to get the ID
             cursor.execute('''
                 INSERT INTO contacts (name, email, message)
                 VALUES (%s, %s, %s)
+                RETURNING id
             ''', (name, email, message))
+            contact_id = cursor.fetchone()[0]
         else:
             # SQLite
             cursor.execute('''
                 INSERT INTO contacts (name, email, message)
                 VALUES (?, ?, ?)
             ''', (name, email, message))
+            contact_id = cursor.lastrowid
         
         conn.commit()
-        contact_id = cursor.lastrowid
         conn.close()
         
         return jsonify({
@@ -265,7 +269,7 @@ def chat():
         app.logger.info(f"Generated SQL: {sql_query}")
         
         if sql_query is None:
-            app.logger.warning("No SQL generated - question may be off-topic")
+            app.logger.warning("No SQL generated - question may be off-topic or API error occurred. Check logs for details.")
             return jsonify({
                 'answer': "I can only answer questions about Konstantin's portfolio projects. Try: 'How many projects?' or 'What uses Python?'",
                 'sql_query': None

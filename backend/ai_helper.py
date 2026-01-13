@@ -21,8 +21,10 @@ def create_sql_query(user_question):
     """
     
     if not model:
-        print("ERROR: GEMINI_API_KEY not set")
+        print("[ERROR] GEMINI_API_KEY not set - model is None")
         return None
+    
+    print(f"[DEBUG] Creating SQL query for: {user_question}")
     
     # Determine database type
     DATABASE_URL = os.getenv('DATABASE_URL')
@@ -37,7 +39,7 @@ RULES:
 - Return ONLY the SQL query (no explanation, no markdown)
 - Use SELECT queries only
 - Use ILIKE for text searches
-- For counting: SELECT COUNT(*)
+- For counting: SELECT COUNT(*) FROM projects
 - For newest: ORDER BY created_at DESC LIMIT 1
 - If not about projects, return: INVALID
 
@@ -52,6 +54,7 @@ Question: {user_question}
 SQL:"""
 
     try:
+        print("[DEBUG] Calling Gemini API...")
         response = model.generate_content(
             prompt,
             generation_config={
@@ -59,21 +62,39 @@ SQL:"""
                 'max_output_tokens': 200
             }
         )
+        print("[DEBUG] Got response from Gemini API")
         
-        # Handle response - may raise exception if blocked/filtered
+        # Handle response - try multiple ways to get the text
+        raw_response = None
         try:
+            # Try the standard way first
             raw_response = response.text.strip()
+            preview = raw_response[:100] if raw_response else "(empty)"
+            print(f"[DEBUG] Got response.text: {preview}...")
+        except AttributeError as attr_error:
+            print(f"[ERROR] response.text failed (AttributeError): {attr_error}")
+            # Try alternative access methods
+            try:
+                if hasattr(response, 'candidates') and response.candidates:
+                    if hasattr(response.candidates[0], 'content'):
+                        if hasattr(response.candidates[0].content, 'parts'):
+                            raw_response = response.candidates[0].content.parts[0].text.strip()
+                            print(f"[DEBUG] Got response via candidates[0].content.parts[0].text")
+                if not raw_response:
+                    print("[ERROR] Could not extract text from response using any method")
+                    return None
+            except Exception as alt_error:
+                print(f"[ERROR] Alternative text extraction failed: {alt_error}")
+                return None
         except Exception as text_error:
             print(f"[ERROR] Failed to extract text from response: {text_error}")
-            # Try to get candidates if available
-            if hasattr(response, 'candidates') and response.candidates:
-                if hasattr(response.candidates[0], 'content'):
-                    raw_response = response.candidates[0].content.parts[0].text.strip()
-                else:
-                    print("[ERROR] Could not extract response text")
-                    return None
-            else:
-                return None
+            import traceback
+            print(f"[ERROR] Traceback: {traceback.format_exc()}")
+            return None
+        
+        if not raw_response:
+            print("[ERROR] raw_response is empty or None")
+            return None
         
         print(f"[DEBUG] Raw Gemini response: {raw_response}")
         
@@ -150,12 +171,36 @@ Answer:"""
             }
         )
         
-        answer = response.text.strip()
-        print(f"[DEBUG] Formatted answer: {answer}")
-        return answer
+        # Handle response - try multiple ways to get the text
+        answer = None
+        try:
+            answer = response.text.strip()
+            print(f"[DEBUG] Formatted answer: {answer}")
+        except AttributeError as attr_error:
+            print(f"[ERROR] response.text failed in format_sql_results (AttributeError): {attr_error}")
+            # Try alternative access methods
+            try:
+                if hasattr(response, 'candidates') and response.candidates:
+                    if hasattr(response.candidates[0], 'content'):
+                        if hasattr(response.candidates[0].content, 'parts'):
+                            answer = response.candidates[0].content.parts[0].text.strip()
+                            print(f"[DEBUG] Got formatted answer via candidates[0].content.parts[0].text")
+            except Exception as alt_error:
+                print(f"[ERROR] Alternative text extraction failed in format_sql_results: {alt_error}")
+        
+        if answer:
+            return answer
+        
+        # Fallback response if we couldn't extract the answer
+        if num_results > 0:
+            return f"I found {num_results} result(s) in Konstantin's portfolio projects."
+        else:
+            return "I couldn't find any matching projects in Konstantin's portfolio."
         
     except Exception as e:
         print(f"[ERROR] Failed to format results: {e}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         # Fallback response
         if num_results > 0:
             return f"I found {num_results} result(s) in Konstantin's portfolio projects."
