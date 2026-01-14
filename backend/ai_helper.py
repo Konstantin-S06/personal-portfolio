@@ -76,7 +76,7 @@ def call_hf_api(prompt, max_tokens=200, temperature=0.1):
 
 def create_sql_query(user_question):
     """
-    Convert natural language to SQL using AI
+    Convert natural language to SQL using AI with detailed instructions
     """
     if not client:
         logger.error("Client not configured")
@@ -84,17 +84,31 @@ def create_sql_query(user_question):
     
     logger.info(f"Creating SQL for: {user_question}")
     
-    # Simple, direct prompt
+    # More detailed prompt with specific examples
     prompt = f"""Generate a PostgreSQL SELECT query for this question.
 
-Database: projects table
-Columns: id, title, description, tech_stack, github_url, created_at
+Database table: projects
+Columns: id, title, description, tech_stack (comma-separated), github_url, created_at
+
+IMPORTANT RULES:
+- Use ILIKE with % wildcards for case-insensitive text search
+- For "how many" questions, use SELECT COUNT(*) FROM projects
+- For technology searches (Java, Python, etc.), use: tech_stack ILIKE '%TechnologyName%'
+- For hackathon "won" questions, use: (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%winning%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first place%')
+- For hackathon "competed" or "participated" questions, use: description ILIKE '%hackathon%' OR title ILIKE '%hackathon%'
+- For project name searches, use: title ILIKE '%ProjectName%'
+
+EXAMPLES:
+Question: "How many projects?" → SELECT COUNT(*) FROM projects
+Question: "How many projects use Java?" → SELECT COUNT(*) FROM projects WHERE tech_stack ILIKE '%Java%'
+Question: "How many hackathons has Konstantin won?" → SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%winning%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first place%')
+Question: "How many hackathons has Konstantin competed in?" → SELECT COUNT(*) FROM projects WHERE description ILIKE '%hackathon%' OR title ILIKE '%hackathon%'
+Question: "hack or treat hackathon win" → SELECT title, description, tech_stack FROM projects WHERE title ILIKE '%hack%' OR description ILIKE '%hack%'
 
 Question: {user_question}
+Return ONLY the SQL query, no explanation:"""
 
-Return only the SQL query, no explanation:"""
-
-    response = call_hf_api(prompt, max_tokens=150, temperature=0.0)
+    response = call_hf_api(prompt, max_tokens=200, temperature=0.0)
     
     if not response:
         logger.error("No response from API")
@@ -148,7 +162,7 @@ def format_sql_results(user_question, results, sql_query=None):
         question_lower = user_question.lower()
         
         if 'hackathon' in question_lower:
-            if any(word in question_lower for word in ['won', 'win', 'wins']):
+            if any(word in question_lower for word in ['won', 'win', 'wins', 'winner']):
                 return f"Konstantin has won {count} hackathon{'s' if count != 1 else ''}."
             else:
                 return f"Konstantin has competed in {count} hackathon{'s' if count != 1 else ''}."
@@ -159,37 +173,31 @@ def format_sql_results(user_question, results, sql_query=None):
                 return f"Konstantin has {count} project{'s' if count != 1 else ''} that use{'s' if count == 1 else ''} {tech}."
         return f"Konstantin has {count} project{'s' if count != 1 else ''}."
     
-    # Try AI formatting for non-count queries
-    try:
-        if len(results) == 1:
-            row = results[0]
-            prompt = f"""Answer this question about a project.
-
-Question: {user_question}
-Project: {row[0] if len(row) > 0 else ''}
-Details: {row[1][:150] if len(row) > 1 else ''}
-
-Answer in 1-2 sentences:"""
-        else:
-            project_list = '\n'.join([f"{i+1}. {row[0]}" for i, row in enumerate(results[:5]) if isinstance(row, tuple) and len(row) > 0])
-            prompt = f"""Answer this question about projects.
-
-Question: {user_question}
-Projects:
-{project_list}
-
-Answer in 1-2 sentences:"""
-        
-        response = call_hf_api(prompt, max_tokens=150, temperature=0.3)
-        if response and len(response) > 10:
-            return response
-    except Exception as e:
-        logger.warning(f"AI formatting failed: {e}")
-    
-    # Fallback
+    # For non-count queries, format directly (don't use AI to avoid it asking questions)
     if len(results) == 1:
+        row = results[0]
+        if isinstance(row, tuple) and len(row) >= 2:
+            # Check if question is asking about a specific project
+            question_lower = user_question.lower()
+            title = str(row[0]) if row[0] else ""
+            description = str(row[1]) if len(row) > 1 and row[1] else ""
+            
+            # For "hack or treat" or similar specific project questions, give direct answer
+            if 'hack or treat' in question_lower or 'hackathon win' in question_lower or 'hackathon' in question_lower:
+                return f"{title}. {description[:200]}" if description else title
+            else:
+                return f"{title}. {description[:150]}" if description else title
         return f"Found: {results[0][0]}"
     else:
-        titles = [str(row[0]) for row in results[:3] if isinstance(row, tuple) and len(row) > 0]
-        more = f" and {len(results)-3} more" if len(results) > 3 else ""
-        return f"Found {len(results)} project{'s'}: {', '.join(titles)}{more}"
+        # Multiple results - list them
+        titles = []
+        for row in results[:5]:
+            if isinstance(row, tuple) and len(row) > 0:
+                titles.append(str(row[0]))
+        
+        if titles:
+            if len(results) <= 5:
+                return f"Found {len(results)} project{'s'}: {', '.join(titles)}"
+            else:
+                return f"Found {len(results)} project{'s'}: {', '.join(titles[:5])}, and {len(results) - 5} more"
+        return f"Found {len(results)} result{'s' if len(results) != 1 else ''}."
