@@ -68,11 +68,11 @@ def create_sql_query(user_question):
     """
     Convert natural language to SQL using AI with structured prompt and aggressive parsing
     
-    KEY IMPROVEMENTS:
-    1. 5 concrete examples (few-shot learning)
-    2. Strict format instructions
-    3. Aggressive SQL extraction (extract anything between SELECT and semicolon)
-    4. Validation before returning
+    IMPROVED PROMPT DESIGN:
+    - Less literal keyword matching
+    - Better semantic coverage for hackathons (includes event names)
+    - Explicit about what we're counting (projects, not events)
+    - More flexible pattern matching
     """
     if not client:
         logger.error("Client not configured")
@@ -80,28 +80,30 @@ def create_sql_query(user_question):
     
     logger.info(f"Creating SQL for: {user_question}")
     
-    # Structured prompt with 5 explicit examples
-    prompt = f"""Generate a PostgreSQL SELECT query for this question about Konstantin's portfolio projects.
+    # Improved prompt: semantic understanding over literal matching
+    prompt = f"""Generate a PostgreSQL SELECT query for this question.
 
 Database: projects table
 Columns: id, title, description, tech_stack, github_url, created_at
 
-SEARCH STRATEGY:
-1. For technology questions: Search tech_stack AND description columns
-2. For achievement questions (hackathons, awards): Search title AND description
-3. For counting: Use COUNT(*) with appropriate WHERE conditions
-4. Use ILIKE '%keyword%' for case-insensitive partial matches
-5. Combine conditions with OR when searching multiple columns
-6. Combine conditions with AND when multiple criteria must match
-
 IMPORTANT: Return ONLY the SQL query on a single line. No explanations, no markdown, no code blocks.
+
+SEMANTIC RULES (not just keywords):
+- "How many projects?" = count all projects
+- "Projects with [technology]" = search tech_stack for that technology (case-insensitive)
+- "Most recent project" = order by created_at DESC, limit 1
+- "List all projects" = select all project data
+- "Hackathons" questions = search for hackathon-related terms in description/title:
+  * Include: "hackathon", "hack", "hack the north", "hack or treat", "hackathon winner", "first place"
+  * For "won"/"wins"/"winner": also require win indicators (won, winning, winner, award, prize, first place, first)
+  * For "competed"/"participated": just search for hackathon terms (no win requirement)
 
 EXAMPLES:
 Question: "How many projects?" 
 SQL: SELECT COUNT(*) FROM projects
 
 Question: "Projects with Python?"
-SQL: SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%Python%' OR description ILIKE '%Python%'
+SQL: SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%Python%'
 
 Question: "Most recent project?"
 SQL: SELECT title, description, tech_stack FROM projects ORDER BY created_at DESC LIMIT 1
@@ -109,22 +111,11 @@ SQL: SELECT title, description, tech_stack FROM projects ORDER BY created_at DES
 Question: "List all projects"
 SQL: SELECT title, description, tech_stack FROM projects
 
-Question: "How many hackathons?"
-SQL: SELECT COUNT(*) FROM projects WHERE description ILIKE '%hackathon%' OR title ILIKE '%hackathon%'
+Question: "How many hackathons"
+SQL: SELECT COUNT(*) FROM projects WHERE description ILIKE '%hackathon%' OR title ILIKE '%hackathon%' OR description ILIKE '%hack%' OR title ILIKE '%hack%'
 
-Question: "How many hackathon wins?"
-SQL: SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%win%' OR description ILIKE '%winner%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%1st%' OR description ILIKE '%first%')
-
-Question: "What technologies does Konstantin use most?"
-SQL: SELECT tech_stack FROM projects
-
-Question: "Projects about machine learning?"
-SQL: SELECT title, description, tech_stack FROM projects WHERE description ILIKE '%machine learning%' OR tech_stack ILIKE '%machine learning%' OR title ILIKE '%machine learning%'
-
-Question: "Any web development projects?"
-SQL: SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%web%' OR description ILIKE '%web%' OR tech_stack ILIKE '%html%' OR tech_stack ILIKE '%css%' OR tech_stack ILIKE '%javascript%' OR tech_stack ILIKE '%react%'
-
-RULE: If the question mentions a keyword (like "hackathon", "Python", "web"), ALWAYS search BOTH description and tech_stack columns using OR conditions.
+Question: "How many hackathon wins"
+SQL: SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%' OR description ILIKE '%hack%' OR title ILIKE '%hack%') AND (description ILIKE '%won%' OR description ILIKE '%winning%' OR description ILIKE '%winner%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first place%' OR description ILIKE '%first%')
 
 Question: {user_question}
 SQL:"""
@@ -184,10 +175,7 @@ def format_sql_results(user_question, results, sql_query=None):
     """
     Format SQL results into natural language
     
-    KEY IMPROVEMENTS:
-    1. Skip AI for COUNT queries - format directly
-    2. Simplified prompt for other queries
-    3. Direct formatting fallback
+    IMPROVED: Clearer about what we're actually counting (projects mentioning hackathons, not hackathon events)
     """
     if not results or len(results) == 0:
         return "No matching projects were found."
@@ -203,7 +191,9 @@ def format_sql_results(user_question, results, sql_query=None):
             if any(word in question_lower for word in ['won', 'win', 'wins', 'winner']):
                 return f"Konstantin has won {count} hackathon{'s' if count != 1 else ''}."
             else:
-                return f"Konstantin has competed in {count} hackathon{'s' if count != 1 else ''}."
+                # More accurate wording: "projects involving hackathons" vs "hackathons competed in"
+                # But keep user-friendly language while being aware of the limitation
+                return f"Konstantin has {count} project{'s' if count != 1 else ''} involving hackathons."
         elif any(tech in question_lower for tech in ['python', 'java', 'javascript', 'react', 'use']):
             tech_match = re.search(r'use[sd]?\s+(\w+)', question_lower)
             if tech_match:
