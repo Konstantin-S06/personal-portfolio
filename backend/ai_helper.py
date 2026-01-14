@@ -95,7 +95,7 @@ IMPORTANT RULES:
 - For "how many" questions, use SELECT COUNT(*) FROM projects
 - For "what technologies" or "list technologies" questions, use: SELECT tech_stack FROM projects (NOT COUNT)
 - For technology searches (Java, Python, etc.), use: tech_stack ILIKE '%TechnologyName%'
-- For hackathon "won"/"wins"/"winner" questions, use: (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%winning%' OR description ILIKE '%winner%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first place%' OR description ILIKE '%first%')
+- For hackathon "won"/"wins"/"winner" questions, use: SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%winning%' OR description ILIKE '%winner%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first place%' OR description ILIKE '%first%')
 - For hackathon "competed" or "participated" questions, use: description ILIKE '%hackathon%' OR title ILIKE '%hackathon%'
 - For project name searches, use: title ILIKE '%ProjectName%'
 
@@ -125,12 +125,8 @@ Return ONLY the SQL query, no explanation:"""
     sql_query = re.sub(r'```\n?', '', sql_query)
     sql_query = re.sub(r'^(SQL|Query):\s*', '', sql_query, flags=re.IGNORECASE)
     
-    # Get first SELECT line
-    for line in sql_query.split('\n'):
-        line = line.strip().rstrip(';')
-        if line.upper().startswith('SELECT'):
-            sql_query = line
-            break
+    # Join all lines into a single query (SQL queries can span multiple lines)
+    sql_query = ' '.join(line.strip() for line in sql_query.split('\n') if line.strip() and not line.strip().startswith('--'))
     
     logger.info(f"Cleaned SQL: {sql_query}")
     
