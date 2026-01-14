@@ -1,253 +1,214 @@
 """
-AI Helper using Hugging Face API for SQL generation and result formatting
+AI Helper using Hugging Face Inference API (Free, No Limits)
+Uses Qwen model which is fast and good at SQL
 """
 
 import os
 import re
 import logging
-import time
-from openai import OpenAI
+import requests
+import json
 
 # Set up logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Configure Hugging Face via OpenAI-compatible API
+# Hugging Face API setup
 HF_API_KEY = os.getenv('HUGGINGFACE_API_KEY') or os.getenv('HF_TOKEN')
-HF_MODEL = "openai/gpt-oss-20b:groq"
+HF_API_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-Coder-32B-Instruct"
 
-if HF_API_KEY:
-    try:
-        client = OpenAI(
-            base_url="https://router.huggingface.co/v1",
-            api_key=HF_API_KEY,
-        )
-        logger.info(f"Hugging Face API configured with model: {HF_MODEL}")
-    except Exception as e:
-        logger.error(f"Failed to initialize Hugging Face client: {e}")
-        client = None
-else:
-    client = None
-    logger.error("HUGGINGFACE_API_KEY or HF_TOKEN not set")
+if not HF_API_KEY:
+    logger.error("HUGGINGFACE_API_KEY not set!")
 
 
-def call_hf_api(prompt, max_tokens=300, temperature=0.1, retries=2):
+def call_hf_api(prompt, max_tokens=300, temperature=0.1):
     """
-    Call Hugging Face API with retry logic and detailed logging
+    Call Hugging Face Inference API directly (simpler and more reliable)
     """
-    if not client:
-        logger.error("Hugging Face client not configured")
+    if not HF_API_KEY:
+        logger.error("No API key configured")
         return None
     
-    for attempt in range(retries + 1):
-        try:
-            logger.info(f"Calling Hugging Face API (attempt {attempt + 1}/{retries + 1})...")
-            completion = client.chat.completions.create(
-                model=HF_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
-            
-            # Log the raw response structure
-            logger.info(f"Response type: {type(completion)}")
-            logger.info(f"Response dir: {[attr for attr in dir(completion) if not attr.startswith('_')]}")
-            
-            if not completion:
-                logger.error("Completion object is None")
-                if attempt < retries:
-                    time.sleep(1)
-                    continue
-                return None
-            
-            if not hasattr(completion, 'choices') or not completion.choices:
-                logger.error(f"API returned no choices. Completion: {completion}")
-                if attempt < retries:
-                    time.sleep(1)
-                    continue
-                return None
-            
-            choice = completion.choices[0]
-            logger.info(f"Choice type: {type(choice)}")
-            logger.info(f"Choice dir: {[attr for attr in dir(choice) if not attr.startswith('_')]}")
-            
-            if not hasattr(choice, 'message'):
-                logger.error("Choice has no message attribute")
-                if attempt < retries:
-                    time.sleep(1)
-                    continue
-                return None
-            
-            message = choice.message
-            logger.info(f"Message type: {type(message)}")
-            logger.info(f"Message dir: {[attr for attr in dir(message) if not attr.startswith('_')]}")
-            
-            # Try different ways to access content
-            if hasattr(message, 'content'):
-                response_text = message.content
-            elif hasattr(message, 'text'):
-                response_text = message.text
-            else:
-                logger.error(f"Message has no content or text attribute. Message: {message}")
-                # Try to convert to dict
-                try:
-                    if hasattr(message, 'model_dump'):
-                        msg_dict = message.model_dump()
-                        logger.info(f"Message as dict: {msg_dict}")
-                        response_text = msg_dict.get('content') or msg_dict.get('text')
-                    else:
-                        response_text = str(message)
-                except:
-                    response_text = None
-            
-            if response_text is None:
-                logger.error("Response content is None after all attempts")
-                if attempt < retries:
-                    time.sleep(1)
-                    continue
-                return None
-            
-            response_text = str(response_text).strip()
-            
-            if not response_text:
-                logger.warning(f"API returned empty string on attempt {attempt + 1}")
-                if attempt < retries:
-                    time.sleep(1)
-                    continue
-                return None
-            
-            logger.info(f"Got response from Hugging Face API ({len(response_text)} chars): {response_text[:200]}...")
-            return response_text
-            
-        except Exception as e:
-            logger.error(f"Hugging Face API call failed (attempt {attempt + 1}): {e}", exc_info=True)
-            if attempt < retries:
-                time.sleep(1)
-                continue
-            return None
+    headers = {
+        "Authorization": f"Bearer {HF_API_KEY}",
+        "Content-Type": "application/json"
+    }
     
-    return None
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": max_tokens,
+            "temperature": temperature,
+            "return_full_text": False,
+            "do_sample": False  # Deterministic for SQL generation
+        }
+    }
+    
+    try:
+        logger.info("Calling Hugging Face API...")
+        response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 503:
+            logger.warning("Model is loading, waiting 20 seconds...")
+            import time
+            time.sleep(20)
+            response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=30)
+        
+        response.raise_for_status()
+        result = response.json()
+        
+        logger.info(f"Raw API response: {result}")
+        
+        # Handle different response formats
+        if isinstance(result, list) and len(result) > 0:
+            text = result[0].get('generated_text', '')
+        elif isinstance(result, dict):
+            text = result.get('generated_text', '')
+        else:
+            logger.error(f"Unexpected response format: {result}")
+            return None
+        
+        if not text:
+            logger.error("Empty response from API")
+            return None
+        
+        logger.info(f"Generated text: {text[:200]}...")
+        return text.strip()
+        
+    except requests.exceptions.Timeout:
+        logger.error("API request timed out")
+        return None
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API request failed: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        return None
 
 
 def create_sql_query(user_question):
     """
-    Convert natural language to SQL using AI with a simple, direct prompt
+    Convert natural language to SQL using Qwen (better at coding tasks)
     """
-    if not client:
-        logger.error("Hugging Face client not configured")
+    if not HF_API_KEY:
+        logger.error("No API key")
         return None
     
-    logger.info(f"Creating SQL query for: {user_question}")
+    logger.info(f"Creating SQL for: {user_question}")
     
-    # Much simpler, more direct prompt
-    prompt = f"""Generate a PostgreSQL SELECT query for this question about a projects database.
+    # Very simple, direct prompt
+    prompt = f"""Convert this question to a PostgreSQL SELECT query.
 
-Database table: projects
+Database: projects table
 Columns: id, title, description, tech_stack, github_url, created_at
+
+Rules:
+- Return ONLY the SQL query
+- No explanations
+- Use ILIKE for text search
+- For "how many", use COUNT(*)
 
 Question: {user_question}
 
-Return only the SQL query, nothing else:"""
+SQL:"""
 
-    try:
-        raw_response = call_hf_api(prompt, max_tokens=150, temperature=0.0)
-        
-        if not raw_response:
-            logger.error("No response from Hugging Face API")
-            return None
-        
-        logger.info(f"Raw API response: {raw_response}")
-        
-        # Clean up response
-        sql_query = raw_response.strip()
-        
-        # Remove code blocks
-        if '```sql' in sql_query:
-            sql_query = sql_query.split('```sql')[1].split('```')[0].strip()
-        elif '```' in sql_query:
-            sql_query = sql_query.split('```')[1].split('```')[0].strip()
-        
-        # Remove prefixes
-        sql_query = re.sub(r'^(SQL|Query):\s*', '', sql_query, flags=re.IGNORECASE)
-        
-        # Get first line only
-        sql_query = sql_query.split('\n')[0].strip().rstrip(';')
-        
-        logger.info(f"Cleaned SQL: {sql_query}")
-        
-        # Validate it looks like SQL
-        if any(keyword in sql_query.upper() for keyword in ['SELECT', 'COUNT', 'FROM']):
-            logger.info(f"Valid SQL detected: {sql_query}")
-            return sql_query
-        
-        logger.warning(f"Response doesn't look like SQL: {sql_query}")
+    response = call_hf_api(prompt, max_tokens=100, temperature=0.0)
+    
+    if not response:
+        logger.error("No response from API")
         return None
-        
-    except Exception as e:
-        logger.error(f"Error in create_sql_query: {e}", exc_info=True)
+    
+    # Clean the response
+    sql_query = response.strip()
+    
+    # Remove markdown code blocks
+    sql_query = re.sub(r'```sql\n?', '', sql_query, flags=re.IGNORECASE)
+    sql_query = re.sub(r'```\n?', '', sql_query)
+    
+    # Get just the SQL line
+    for line in sql_query.split('\n'):
+        line = line.strip()
+        if line.upper().startswith('SELECT'):
+            sql_query = line.rstrip(';')
+            break
+    
+    logger.info(f"Cleaned SQL: {sql_query}")
+    
+    # Validate
+    if not sql_query.upper().startswith('SELECT'):
+        logger.warning(f"Not valid SQL: {sql_query}")
         return None
+    
+    # Security check
+    dangerous = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'ALTER', 'CREATE', 'TRUNCATE']
+    sql_upper = sql_query.upper()
+    if any(word in sql_upper for word in dangerous):
+        logger.error(f"Dangerous SQL blocked: {sql_query}")
+        return None
+    
+    return sql_query
 
 
 def format_sql_results(user_question, results, sql_query=None):
     """
-    Format SQL results into natural language using AI
+    Format SQL results into natural language
     """
-    if not client:
-        return "AI service not configured."
+    if not HF_API_KEY:
+        return "AI not configured"
+    
+    logger.info(f"Formatting {len(results)} results")
     
     if not results or len(results) == 0:
-        return "No matching projects were found."
+        return "I couldn't find any matching projects in Konstantin's portfolio."
     
-    # Prepare results data
-    is_count_query = sql_query and 'COUNT(*)' in sql_query.upper()
+    # Detect COUNT query
+    is_count = sql_query and 'COUNT(*)' in sql_query.upper()
     
-    if is_count_query:
-        count = results[0][0] if results[0] else 0
-        results_text = f"Count: {count}"
-    else:
-        # Format results simply
-        formatted_results = []
-        for row in results[:5]:
-            if isinstance(row, tuple):
-                if len(row) >= 3:
-                    formatted_results.append(f"Title: {row[0]}, Description: {row[1]}, Tech: {row[2]}")
-                elif len(row) == 1:
-                    formatted_results.append(f"Tech: {row[0]}")
-        results_text = "\n".join(formatted_results)
+    if is_count:
+        count = results[0][0]
+        # Simple direct answer for counts
+        return f"Konstantin has {count} project{'s' if count != 1 else ''} in his portfolio."
     
-    # Simple prompt
-    prompt = f"""Answer this question based on the data:
+    # Format project results
+    if len(results) == 1:
+        row = results[0]
+        if len(row) >= 2:
+            prompt = f"""Answer in 1-2 friendly sentences.
 
 Question: {user_question}
-Data: {results_text}
+Project: {row[0]}
+Details: {row[1][:150]}
 
-Answer in 1-2 sentences:"""
-
-    try:
-        answer = call_hf_api(prompt, max_tokens=200, temperature=0.5)
-        
-        if answer and answer.strip():
-            logger.info(f"Formatted answer: {answer}")
-            return answer.strip()
-        
-        logger.warning("AI formatting returned empty, using fallback")
-        
-        # Fallback formatting
-        if is_count_query:
-            count = results[0][0] if results[0] else 0
-            return f"{count}"
+Answer:"""
         else:
-            titles = []
-            for row in results[:5]:
-                if isinstance(row, tuple) and len(row) > 0:
-                    titles.append(str(row[0]))
-            if titles:
-                return f"Found {len(results)} project(s): {', '.join(titles)}"
-            return f"Found {len(results)} result(s)."
+            return f"I found: {row[0]}"
+    else:
+        # Multiple results
+        project_list = []
+        for i, row in enumerate(results[:5], 1):
+            if isinstance(row, tuple) and len(row) > 0:
+                project_list.append(f"{i}. {row[0]}")
         
-    except Exception as e:
-        logger.error(f"Error in format_sql_results: {e}", exc_info=True)
-        # Fallback
-        if is_count_query:
-            count = results[0][0] if results[0] else 0
-            return f"{count}"
-        return f"Found {len(results)} result(s)."
+        projects_text = '\n'.join(project_list)
+        more = f" (showing first 5 of {len(results)})" if len(results) > 5 else ""
+        
+        prompt = f"""Answer naturally in 1-2 sentences.
+
+Question: {user_question}
+Projects found{more}:
+{projects_text}
+
+Answer:"""
+    
+    response = call_hf_api(prompt, max_tokens=150, temperature=0.3)
+    
+    if response and len(response) > 10:
+        return response
+    
+    # Fallback if AI formatting fails
+    if len(results) == 1:
+        return f"Found: {results[0][0]}"
+    else:
+        titles = [str(row[0]) for row in results[:3]]
+        more = f" and {len(results)-3} more" if len(results) > 3 else ""
+        return f"Found {len(results)} projects: {', '.join(titles)}{more}"
