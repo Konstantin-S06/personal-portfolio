@@ -81,10 +81,18 @@ def create_sql_query(user_question):
     logger.info(f"Creating SQL for: {user_question}")
     
     # Structured prompt with 5 explicit examples
-    prompt = f"""Generate a PostgreSQL SELECT query for this question.
+    prompt = f"""Generate a PostgreSQL SELECT query for this question about Konstantin's portfolio projects.
 
 Database: projects table
 Columns: id, title, description, tech_stack, github_url, created_at
+
+SEARCH STRATEGY:
+1. For technology questions: Search tech_stack AND description columns
+2. For achievement questions (hackathons, awards): Search title AND description
+3. For counting: Use COUNT(*) with appropriate WHERE conditions
+4. Use ILIKE '%keyword%' for case-insensitive partial matches
+5. Combine conditions with OR when searching multiple columns
+6. Combine conditions with AND when multiple criteria must match
 
 IMPORTANT: Return ONLY the SQL query on a single line. No explanations, no markdown, no code blocks.
 
@@ -93,7 +101,7 @@ Question: "How many projects?"
 SQL: SELECT COUNT(*) FROM projects
 
 Question: "Projects with Python?"
-SQL: SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%Python%'
+SQL: SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%Python%' OR description ILIKE '%Python%'
 
 Question: "Most recent project?"
 SQL: SELECT title, description, tech_stack FROM projects ORDER BY created_at DESC LIMIT 1
@@ -101,11 +109,22 @@ SQL: SELECT title, description, tech_stack FROM projects ORDER BY created_at DES
 Question: "List all projects"
 SQL: SELECT title, description, tech_stack FROM projects
 
-Question: "How many hackathons"
+Question: "How many hackathons?"
 SQL: SELECT COUNT(*) FROM projects WHERE description ILIKE '%hackathon%' OR title ILIKE '%hackathon%'
 
-Question: "How many hackathon wins"
-SQL: SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%winning%' OR description ILIKE '%winner%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%first place%' OR description ILIKE '%first%')
+Question: "How many hackathon wins?"
+SQL: SELECT COUNT(*) FROM projects WHERE (description ILIKE '%hackathon%' OR title ILIKE '%hackathon%') AND (description ILIKE '%won%' OR description ILIKE '%win%' OR description ILIKE '%winner%' OR description ILIKE '%award%' OR description ILIKE '%prize%' OR description ILIKE '%1st%' OR description ILIKE '%first%')
+
+Question: "What technologies does Konstantin use most?"
+SQL: SELECT tech_stack FROM projects
+
+Question: "Projects about machine learning?"
+SQL: SELECT title, description, tech_stack FROM projects WHERE description ILIKE '%machine learning%' OR tech_stack ILIKE '%machine learning%' OR title ILIKE '%machine learning%'
+
+Question: "Any web development projects?"
+SQL: SELECT title, description, tech_stack FROM projects WHERE tech_stack ILIKE '%web%' OR description ILIKE '%web%' OR tech_stack ILIKE '%html%' OR tech_stack ILIKE '%css%' OR tech_stack ILIKE '%javascript%' OR tech_stack ILIKE '%react%'
+
+RULE: If the question mentions a keyword (like "hackathon", "Python", "web"), ALWAYS search BOTH description and tech_stack columns using OR conditions.
 
 Question: {user_question}
 SQL:"""
