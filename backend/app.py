@@ -5,7 +5,8 @@ Author: Konstantin Shtop
 
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, date
+import hashlib
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from db import init_db, get_db_connection
@@ -25,8 +26,8 @@ logging.basicConfig(
 CORS(app, resources={
     r"/api/*": {
         "origins": "*",
-        "methods": ["GET", "POST", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "X-Admin-Token", "Authorization"]
     }
 })
 
@@ -40,6 +41,40 @@ with app.app_context():
 # Check database type once
 DATABASE_URL = os.getenv('DATABASE_URL')
 
+def _expected_admin_token() -> str:
+    """
+    Deterministic token derived from ADMIN_PASSWORD so the backend can verify it
+    without storing session state.
+    """
+    correct_password = os.getenv('ADMIN_PASSWORD', 'default_password_change_me')
+    return hashlib.sha256(correct_password.encode()).hexdigest()
+
+
+def _require_admin():
+    """
+    Enforce admin-only access for write operations (create/update/delete projects).
+    Clients must send: X-Admin-Token: <token>
+    """
+    token = request.headers.get('X-Admin-Token') or ""
+    if not token or token != _expected_admin_token():
+        return jsonify({'error': 'Unauthorized'}), 401
+    return None
+
+
+def _parse_project_date(value):
+    """
+    Accepts YYYY-MM-DD or empty/null. Returns date | None, or (None, error_response)
+    """
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    try:
+        return date.fromisoformat(s)
+    except Exception:
+        return None
+
 # ===========================
 # API ROUTES
 # ===========================
@@ -52,9 +87,9 @@ def get_projects():
         cursor = conn.cursor()
         
         cursor.execute('''
-            SELECT id, title, description, tech_stack, github_url
+            SELECT id, title, description, tech_stack, github_url, project_date, created_at, updated_at
             FROM projects
-            ORDER BY id DESC
+            ORDER BY created_at DESC, id DESC
         ''')
         
         projects = []
@@ -64,7 +99,10 @@ def get_projects():
                 'title': row[1],
                 'description': row[2],
                 'tech_stack': row[3],
-                'github_url': row[4]
+                'github_url': row[4],
+                'project_date': row[5].isoformat() if row[5] else None,
+                'created_at': row[6].isoformat() if row[6] else None,
+                'updated_at': row[7].isoformat() if row[7] else None
             })
         
         conn.close()
@@ -79,6 +117,10 @@ def get_projects():
 def create_project():
     """POST /api/projects - Creates a new project"""
     try:
+        auth_error = _require_admin()
+        if auth_error:
+            return auth_error
+
         data = request.get_json()
         
         # Validate required fields
@@ -92,6 +134,7 @@ def create_project():
         description = data['description'].strip()
         tech_stack = data['tech_stack'].strip()
         github_url = data.get('github_url', '').strip() or None
+        project_date = _parse_project_date(data.get('project_date'))
         
         # Validation
         if len(title) > 200:
@@ -110,17 +153,17 @@ def create_project():
         if DATABASE_URL:
             # PostgreSQL - use RETURNING to get the ID
             cursor.execute('''
-                INSERT INTO projects (title, description, tech_stack, github_url)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO projects (title, description, tech_stack, github_url, project_date)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING id
-            ''', (title, description, tech_stack, github_url))
+            ''', (title, description, tech_stack, github_url, project_date))
             project_id = cursor.fetchone()[0]
         else:
             # SQLite
             cursor.execute('''
-                INSERT INTO projects (title, description, tech_stack, github_url)
-                VALUES (?, ?, ?, ?)
-            ''', (title, description, tech_stack, github_url))
+                INSERT INTO projects (title, description, tech_stack, github_url, project_date)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (title, description, tech_stack, github_url, project_date.isoformat() if project_date else None))
             project_id = cursor.lastrowid
         
         conn.commit()
@@ -140,6 +183,10 @@ def create_project():
 def delete_project(project_id):
     """DELETE /api/projects/<id> - Deletes a project"""
     try:
+        auth_error = _require_admin()
+        if auth_error:
+            return auth_error
+
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -169,6 +216,95 @@ def delete_project(project_id):
         
     except Exception as e:
         app.logger.error(f"Error deleting project: {str(e)}")
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+
+
+@app.route('/api/projects/<int:project_id>', methods=['PUT'])
+def update_project(project_id):
+    """PUT /api/projects/<id> - Updates an existing project"""
+    try:
+        auth_error = _require_admin()
+        if auth_error:
+            return auth_error
+
+        data = request.get_json() or {}
+
+        # Validate required fields
+        required_fields = ['title', 'description', 'tech_stack']
+        for field in required_fields:
+            if not data.get(field) or not str(data.get(field)).strip():
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
+        title = str(data['title']).strip()
+        description = str(data['description']).strip()
+        tech_stack = str(data['tech_stack']).strip()
+        github_url = str(data.get('github_url', '')).strip() or None
+        project_date = _parse_project_date(data.get('project_date'))
+
+        if len(title) > 200:
+            return jsonify({'error': 'Title too long'}), 400
+        if len(description) > 2000:
+            return jsonify({'error': 'Description too long'}), 400
+        if len(tech_stack) > 300:
+            return jsonify({'error': 'Tech stack too long'}), 400
+        if github_url and not github_url.startswith('http'):
+            return jsonify({'error': 'Invalid GitHub URL'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if project exists
+        if DATABASE_URL:
+            cursor.execute('SELECT id FROM projects WHERE id = %s', (project_id,))
+        else:
+            cursor.execute('SELECT id FROM projects WHERE id = ?', (project_id,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({'error': 'Project not found'}), 404
+
+        if DATABASE_URL:
+            cursor.execute(
+                '''
+                UPDATE projects
+                SET title = %s,
+                    description = %s,
+                    tech_stack = %s,
+                    github_url = %s,
+                    project_date = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                ''',
+                (title, description, tech_stack, github_url, project_date, project_id),
+            )
+        else:
+            cursor.execute(
+                '''
+                UPDATE projects
+                SET title = ?,
+                    description = ?,
+                    tech_stack = ?,
+                    github_url = ?,
+                    project_date = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                ''',
+                (
+                    title,
+                    description,
+                    tech_stack,
+                    github_url,
+                    project_date.isoformat() if project_date else None,
+                    project_id,
+                ),
+            )
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'message': 'Project updated successfully', 'project_id': project_id}), 200
+
+    except Exception as e:
+        app.logger.error(f"Error updating project: {str(e)}")
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 
@@ -238,14 +374,7 @@ def verify_admin():
         correct_password = os.getenv('ADMIN_PASSWORD', 'default_password_change_me')
         
         if submitted_password == correct_password:
-            import time
-            import hashlib
-            
-            token = hashlib.sha256(
-                f"{correct_password}_{int(time.time())}".encode()
-            ).hexdigest()[:32]
-            
-            return jsonify({'success': True, 'token': token}), 200
+            return jsonify({'success': True, 'token': _expected_admin_token()}), 200
         else:
             return jsonify({'error': 'Invalid password'}), 401
             

@@ -7,6 +7,29 @@ import os
 # Get database URL from environment
 DATABASE_URL = os.getenv('DATABASE_URL')
 
+def _ensure_project_columns(cursor, is_postgres: bool):
+    """
+    Best-effort schema migration for existing databases.
+    Adds:
+    - project_date: an explicit date for the project (separate from created_at)
+    - updated_at: last update timestamp
+    """
+    if is_postgres:
+        cursor.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_date DATE")
+        cursor.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+        return
+
+    # SQLite: ADD COLUMN has no IF NOT EXISTS on older versions, so we try and ignore failures.
+    try:
+        cursor.execute("ALTER TABLE projects ADD COLUMN project_date DATE")
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE projects ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    except Exception:
+        pass
+
+
 def get_db_connection():
     """
     Creates and returns a database connection.
@@ -42,7 +65,9 @@ def init_db():
                 description VARCHAR(2000) NOT NULL,
                 tech_stack VARCHAR(300) NOT NULL,
                 github_url VARCHAR(300),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                project_date DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
@@ -66,6 +91,9 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_contacts_created 
             ON contacts(created_at DESC)
         ''')
+
+        # Backfill/ensure columns on existing DBs
+        _ensure_project_columns(cursor, is_postgres=True)
     else:
         # SQLite syntax (for local development)
         cursor.execute('''
@@ -75,7 +103,9 @@ def init_db():
                 description TEXT NOT NULL CHECK(length(description) <= 2000),
                 tech_stack TEXT NOT NULL CHECK(length(tech_stack) <= 300),
                 github_url TEXT CHECK(github_url IS NULL OR length(github_url) <= 300),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                project_date DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
@@ -98,6 +128,9 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_contacts_created 
             ON contacts(created_at DESC)
         ''')
+
+        # Backfill/ensure columns on existing DBs
+        _ensure_project_columns(cursor, is_postgres=False)
     
     conn.commit()
     conn.close()

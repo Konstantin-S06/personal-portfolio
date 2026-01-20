@@ -25,7 +25,9 @@
 --   Alternative: Separate tech_stack table with many-to-many relationship
 --   Tradeoff: Current design favors simplicity over query flexibility
 -- - github_url: Optional, for projects with public repos
--- - created_at: Audit trail and ordering by recency
+-- - project_date: Human-meaningful project date (separate from created_at)
+-- - created_at: Audit trail and ordering by recency (insert time)
+-- - updated_at: Audit trail for edits
 
 CREATE TABLE IF NOT EXISTS projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT,  -- SQLite syntax
@@ -35,7 +37,9 @@ CREATE TABLE IF NOT EXISTS projects (
     description TEXT NOT NULL CHECK(length(description) <= 2000),
     tech_stack TEXT NOT NULL CHECK(length(tech_stack) <= 300),
     github_url TEXT CHECK(github_url IS NULL OR length(github_url) <= 300),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    project_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Index for displaying projects in reverse chronological order

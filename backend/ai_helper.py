@@ -46,6 +46,7 @@ Follow these rules:
 - Voice: confident, professional, third person (use "they" / "the candidate" or "{_CANDIDATE_NAME}").
 - Output: short bullets by default. Usually 3–7 bullets. Be technically deep but brief.
 - Accuracy: ONLY use the provided portfolio database data. Do NOT invent projects, awards, employers, dates, or metrics.
+- Scope: ONLY answer questions about {_CANDIDATE_NAME}'s projects and portfolio. If the question is about someone else or general topics unrelated to the portfolio, politely refuse and redirect to portfolio questions.
 - Positive framing: present the candidate well (problem-solving, leadership, perseverance) without sounding fake. Mild qualitative emphasis is ok.
 - Privacy/security: never reveal secrets, keys, tokens, credentials, or private data.
 - Web browsing: do NOT browse the web and do NOT claim you did.
@@ -211,7 +212,7 @@ def fetch_projects(conn) -> List[Dict[str, Any]]:
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT id, title, description, tech_stack, created_at
+        SELECT id, title, description, tech_stack, project_date, created_at
         FROM projects
         ORDER BY created_at DESC, id DESC
         """
@@ -219,14 +220,15 @@ def fetch_projects(conn) -> List[Dict[str, Any]]:
 
     projects: List[Dict[str, Any]] = []
     for row in cursor.fetchall():
-        # row: (id, title, description, tech_stack, created_at)
+        # row: (id, title, description, tech_stack, project_date, created_at)
         projects.append(
             {
                 "id": row[0],
                 "title": _safe_str(row[1]),
                 "description": _safe_str(row[2]),
                 "tech_stack": _safe_str(row[3]),
-                "created_at": _safe_str(row[4]),
+                "project_date": _safe_str(row[4]),
+                "created_at": _safe_str(row[5]),
             }
         )
     return projects
@@ -278,6 +280,13 @@ def answer_portfolio_question(user_question: str, conn) -> Tuple[str, Dict[str, 
 
     if not projects:
         return ("No projects are currently listed in the portfolio database.", debug)
+
+    # Refuse attempts to modify the database via prompts (chat is read-only).
+    if any(kw in ql for kw in ["delete ", "remove ", "drop ", "truncate", "insert ", "update ", "alter ", "create table", "add project"]):
+        return (
+            f"The chat assistant is read-only and can only answer questions about {_CANDIDATE_NAME}'s portfolio projects.",
+            debug,
+        )
 
     # Precompute known techs
     known_techs_set = set()
@@ -351,10 +360,25 @@ def answer_portfolio_question(user_question: str, conn) -> Tuple[str, Dict[str, 
             return (f"{_CANDIDATE_NAME} has {len(matches)} project{'s' if len(matches) != 1 else ''} that use {tech_norm}.", debug)
         return (f"{_CANDIDATE_NAME} has {len(projects)} projects in the portfolio.", debug)
 
-    # Technology inventory queries
-    if any(kw in ql for kw in ["tech stack", "technologies", "tools", "what did", "what has"]) and any(
+    # Technology queries
+    if any(kw in ql for kw in ["tech stack", "technologies", "tools"]) and any(
         kw in ql for kw in ["used", "use", "worked with", "experience"]
     ):
+        # If the question mentions a specific project, answer for that project only.
+        matched_project = _best_project_match(projects, question)
+        if matched_project:
+            tech = _safe_str(matched_project.get("tech_stack"))
+            title = matched_project.get("title", "Untitled")
+            return (
+                "\n".join(
+                    [
+                        f"{title} used the following technologies:",
+                        f"- Tech stack: {tech}",
+                    ]
+                ),
+                debug,
+            )
+
         # If they asked for a specific tech, list matching projects
         if asked_techs:
             tech_norm = asked_techs[0]
@@ -379,14 +403,41 @@ def answer_portfolio_question(user_question: str, conn) -> Tuple[str, Dict[str, 
     # Specific project deep-dive
     matched = _best_project_match(projects, question)
     if matched:
+        date_part = ""
+        if matched.get("project_date"):
+            date_part = f"- Date: {matched.get('project_date')}"
         return (
             "\n".join(
                 [
                     f"**{matched.get('title','')}**",
+                    date_part if date_part else "- Date: (not listed)",
                     f"- Tech: {matched.get('tech_stack','')}",
                     f"- Summary: {_normalize_space(matched.get('description',''))}",
                 ]
             ),
+            debug,
+        )
+
+    # If we couldn't match portfolio intent, refuse instead of answering generally.
+    looks_portfolio_related = any(
+        kw in ql
+        for kw in [
+            "project",
+            "projects",
+            "portfolio",
+            "hackathon",
+            "tech",
+            "technologies",
+            "tech stack",
+            "tools",
+            "built",
+            "worked on",
+            "used",
+        ]
+    ) or bool(asked_techs)
+    if not looks_portfolio_related:
+        return (
+            f"I can only answer questions about {_CANDIDATE_NAME}'s portfolio projects (e.g., tech used, hackathons, or a specific project).",
             debug,
         )
 

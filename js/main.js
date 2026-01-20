@@ -141,6 +141,10 @@ async function submitProject() {
     const description = document.getElementById('project-description').value.trim();
     const techStack = document.getElementById('project-tech').value.trim();
     const githubUrl = document.getElementById('project-github').value.trim();
+    const projectDateEl = document.getElementById('project-date');
+    const projectDate = projectDateEl ? projectDateEl.value.trim() : '';
+    const editingIdEl = document.getElementById('editing-project-id');
+    const editingProjectId = editingIdEl ? editingIdEl.value.trim() : '';
     
     const messageDiv = document.getElementById('admin-message');
     const submitBtn = document.getElementById('submit-project-btn');
@@ -160,17 +164,28 @@ async function submitProject() {
     try {
         // Disable submit button to prevent double submission
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Adding Project...';
+        submitBtn.textContent = editingProjectId ? 'Saving Changes...' : 'Adding Project...';
+
+        const adminToken = sessionStorage.getItem('admin_token') || '';
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Admin-Token': adminToken
+        };
         
-        const response = await fetch(`${API_BASE_URL}/api/projects`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+        const url = editingProjectId
+            ? `${API_BASE_URL}/api/projects/${editingProjectId}`
+            : `${API_BASE_URL}/api/projects`;
+
+        const method = editingProjectId ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method,
+            headers,
             body: JSON.stringify({
                 title: title,
                 description: description,
                 tech_stack: techStack,
+                project_date: projectDate || null,
                 github_url: githubUrl || null
             })
         });
@@ -178,12 +193,9 @@ async function submitProject() {
         const data = await response.json();
         
         if (response.ok) {
-            showMessage(messageDiv, 'Project added successfully!', 'success');
-            // Clear form
-            document.getElementById('project-title').value = '';
-            document.getElementById('project-description').value = '';
-            document.getElementById('project-tech').value = '';
-            document.getElementById('project-github').value = '';
+            showMessage(messageDiv, editingProjectId ? 'Project updated successfully!' : 'Project added successfully!', 'success');
+            // Clear form / exit edit mode
+            cancelEdit(true);
             // Reload projects list if on admin page
             if (typeof loadAdminProjects === 'function') {
                 loadAdminProjects();
@@ -198,7 +210,9 @@ async function submitProject() {
     } finally {
         // Re-enable submit button
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Add Project';
+        const currentEditingIdEl = document.getElementById('editing-project-id');
+        const currentEditingId = currentEditingIdEl ? currentEditingIdEl.value.trim() : '';
+        submitBtn.textContent = currentEditingId ? 'Save Changes' : 'Add Project';
     }
 }
 
@@ -371,19 +385,36 @@ async function loadAdminProjects() {
                 const techStack = document.createElement('p');
                 techStack.textContent = `Tech: ${project.tech_stack}`;
                 techStack.style.cssText = 'margin: 0; color: #6b7280; font-size: 0.875rem;';
+
+                const projectDate = document.createElement('p');
+                projectDate.textContent = `Date: ${project.project_date || '—'}`;
+                projectDate.style.cssText = 'margin: 0.25rem 0 0 0; color: #6b7280; font-size: 0.875rem;';
                 
                 projectInfo.appendChild(title);
                 projectInfo.appendChild(description);
                 projectInfo.appendChild(techStack);
+                projectInfo.appendChild(projectDate);
                 
+                const actions = document.createElement('div');
+                actions.style.cssText = 'display:flex; gap:0.5rem; margin-left:1rem;';
+
+                const editBtn = document.createElement('button');
+                editBtn.textContent = 'Edit';
+                editBtn.className = 'btn-primary';
+                editBtn.style.cssText = 'background: #2563eb; padding: 0.5rem 1rem;';
+                editBtn.onclick = () => startEdit(project);
+
                 const deleteBtn = document.createElement('button');
                 deleteBtn.textContent = 'Delete';
                 deleteBtn.className = 'btn-primary';
-                deleteBtn.style.cssText = 'background: #ef4444; margin-left: 1rem; padding: 0.5rem 1rem;';
+                deleteBtn.style.cssText = 'background: #ef4444; padding: 0.5rem 1rem;';
                 deleteBtn.onclick = () => deleteProject(project.id, project.title);
+
+                actions.appendChild(editBtn);
+                actions.appendChild(deleteBtn);
                 
                 projectDiv.appendChild(projectInfo);
-                projectDiv.appendChild(deleteBtn);
+                projectDiv.appendChild(actions);
                 container.appendChild(projectDiv);
             });
         } else {
@@ -408,10 +439,12 @@ async function deleteProject(projectId, projectTitle) {
     const container = document.getElementById('projects-list-container');
     
     try {
+        const adminToken = sessionStorage.getItem('admin_token') || '';
         const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}`, {
             method: 'DELETE',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Admin-Token': adminToken
             }
         });
         
@@ -431,9 +464,57 @@ async function deleteProject(projectId, projectTitle) {
     }
 }
 
+function startEdit(project) {
+    const formTitle = document.getElementById('admin-form-title');
+    const editingIdEl = document.getElementById('editing-project-id');
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+    const submitBtn = document.getElementById('submit-project-btn');
+
+    if (formTitle) formTitle.textContent = 'Edit Project';
+    if (editingIdEl) editingIdEl.value = project.id;
+    if (cancelBtn) cancelBtn.style.display = 'inline-block';
+    if (submitBtn) submitBtn.textContent = 'Save Changes';
+
+    document.getElementById('project-title').value = project.title || '';
+    document.getElementById('project-description').value = project.description || '';
+    document.getElementById('project-tech').value = project.tech_stack || '';
+    document.getElementById('project-github').value = project.github_url || '';
+
+    const dateEl = document.getElementById('project-date');
+    if (dateEl) dateEl.value = project.project_date || '';
+
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+function cancelEdit(silent = false) {
+    const formTitle = document.getElementById('admin-form-title');
+    const editingIdEl = document.getElementById('editing-project-id');
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+    const submitBtn = document.getElementById('submit-project-btn');
+
+    if (formTitle) formTitle.textContent = 'Add New Project';
+    if (editingIdEl) editingIdEl.value = '';
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    if (submitBtn) submitBtn.textContent = 'Add Project';
+
+    // Clear form
+    const ids = ['project-title', 'project-description', 'project-tech', 'project-github', 'project-date'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    if (!silent) {
+        const messageDiv = document.getElementById('admin-message');
+        if (messageDiv) messageDiv.style.display = 'none';
+    }
+}
+
 // Make functions available globally for onclick handlers
 window.loadProjects = loadProjects;
 window.loadAdminProjects = loadAdminProjects;
 window.submitProject = submitProject;
 window.submitContactForm = submitContactForm;
 window.deleteProject = deleteProject;
+window.startEdit = startEdit;
+window.cancelEdit = cancelEdit;

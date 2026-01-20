@@ -45,11 +45,12 @@
                 </div>
 
                 <div class="admin-form-container" style="margin-top: 2rem;">
-                    <h2>Add New Project</h2>
+                    <h2 id="admin-form-title">Add New Project</h2>
                     
                     <div id="admin-message" class="form-message" style="display: none;"></div>
 
                     <div id="project-form-wrapper">
+                        <input type="hidden" id="editing-project-id" value="">
                         <div class="form-group">
                             <label for="project-title">Project Title *</label>
                             <input 
@@ -89,6 +90,16 @@
                         </div>
 
                         <div class="form-group">
+                            <label for="project-date">Project Date</label>
+                            <input
+                                type="date"
+                                id="project-date"
+                                name="project_date"
+                            >
+                            <small>Optional: the date/timeframe of the project (YYYY-MM-DD)</small>
+                        </div>
+
+                        <div class="form-group">
                             <label for="project-github">GitHub URL</label>
                             <input 
                                 type="url" 
@@ -107,6 +118,16 @@
                             onclick="submitProject()"
                         >
                             Add Project
+                        </button>
+
+                        <button
+                            type="button"
+                            id="cancel-edit-btn"
+                            class="btn-primary"
+                            style="display:none; background:#6b7280; margin-left:0.5rem;"
+                            onclick="cancelEdit()"
+                        >
+                            Cancel Edit
                         </button>
                     </div>
                 </div>
