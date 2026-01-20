@@ -258,7 +258,7 @@ def verify_admin():
 def chat():
     """POST /api/chat - AI-powered chat using Hugging Face"""
     try:
-        from ai_helper import create_sql_query, format_sql_results
+        from ai_helper import answer_portfolio_question
         
         data = request.get_json()
         
@@ -271,43 +271,16 @@ def chat():
         if len(question) > 500:
             return jsonify({'error': 'Question too long'}), 400
         
-        # Convert to SQL using Gemini
-        app.logger.info(f"About to call create_sql_query with question: '{question}'")
-        sql_query = create_sql_query(question)
-        app.logger.info(f"create_sql_query returned: {sql_query}")
-        
-        if sql_query is None:
-            app.logger.warning("No SQL generated - question may be off-topic or API error occurred. Check ai_helper logs above for details.")
-            return jsonify({
-                'answer': "I can answer questions about Konstantin's portfolio projects. Try asking about specific projects, technologies used, or the number of projects.",
-                'sql_query': None
-            }), 200
-        
-        # Execute query
         conn = get_db_connection()
-        cursor = conn.cursor()
-        
         try:
-            cursor.execute(sql_query)
-            results = cursor.fetchall()
-            app.logger.info(f"Query returned {len(results)} results")
-        except Exception as sql_error:
-            app.logger.error(f"SQL execution error: {sql_error}")
+            answer, debug = answer_portfolio_question(question, conn)
+            app.logger.info(f"Chat debug: {debug}")
+        finally:
             conn.close()
-            return jsonify({
-                'answer': "I had trouble with that question. Try: 'How many projects?' or 'List all projects'",
-                'sql_query': sql_query
-            }), 200
-        
-        conn.close()
-        
-        # Format with AI - pass sql_query to help detect COUNT queries
-        answer = format_sql_results(question, results, sql_query)
-        app.logger.info(f"Final answer: {answer}")
         
         return jsonify({
             'answer': answer,
-            'sql_query': sql_query
+            'sql_query': None
         }), 200
         
     except ImportError:

@@ -6,6 +6,8 @@ Simplified and reliable SQL generation with strict validation
 import os
 import re
 import logging
+import difflib
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 from openai import OpenAI
 
 # Set up logging
@@ -35,7 +37,57 @@ MODELS = [
 ]
 
 
-def call_hf_api(prompt, max_tokens=200, temperature=0.1):
+_CANDIDATE_NAME = os.getenv("CANDIDATE_NAME", "Konstantin").strip() or "Konstantin"
+
+_PORTFOLIO_SYSTEM_PROMPT = f"""
+You are a portfolio Q&A bot for {_CANDIDATE_NAME}'s website.
+
+Follow these rules:
+- Voice: confident, professional, third person (use "they" / "the candidate" or "{_CANDIDATE_NAME}").
+- Output: short bullets by default. Usually 3–7 bullets. Be technically deep but brief.
+- Accuracy: ONLY use the provided portfolio database data. Do NOT invent projects, awards, employers, dates, or metrics.
+- Positive framing: present the candidate well (problem-solving, leadership, perseverance) without sounding fake. Mild qualitative emphasis is ok.
+- Privacy/security: never reveal secrets, keys, tokens, credentials, or private data.
+- Web browsing: do NOT browse the web and do NOT claim you did.
+- Code: do NOT paste code. Summarize conceptually.
+- Links: do NOT include GitHub links. If asked, direct them to the site’s Projects page (and/or Contact page).
+- If missing info: ask at most one targeted clarifying question, or suggest where on the site to look.
+""".strip()
+
+_HACKATHON_EVENT_TERMS = [
+    "hack the north",
+    "hack or treat",
+]
+
+_HACKATHON_TERMS = [
+    "hackathon",
+    # keep "hack" as a word-boundary regex to reduce false positives
+]
+
+_WIN_TERMS = [
+    "won",
+    "winner",
+    "winning",
+    "award",
+    "prize",
+    "first place",
+    "second place",
+    "third place",
+    "finalist",
+]
+
+_TECH_ALIASES = {
+    "js": "javascript",
+    "ts": "typescript",
+    "py": "python",
+    "postgres": "postgresql",
+    "postgre": "postgresql",
+    "node": "node.js",
+    "nodejs": "node.js",
+}
+
+
+def call_hf_chat(messages, max_tokens=200, temperature=0.1):
     """
     Call Hugging Face API with model fallback
     """
@@ -46,7 +98,7 @@ def call_hf_api(prompt, max_tokens=200, temperature=0.1):
         try:
             completion = client.chat.completions.create(
                 model=model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
@@ -62,6 +114,315 @@ def call_hf_api(prompt, max_tokens=200, temperature=0.1):
             continue
     
     return None
+
+
+def call_hf_api(prompt, max_tokens=200, temperature=0.1):
+    """
+    Backwards-compatible wrapper (single user prompt).
+    """
+    return call_hf_chat(
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+
+
+def _safe_str(v: Any) -> str:
+    return "" if v is None else str(v)
+
+
+def _normalize_space(s: str) -> str:
+    return " ".join((s or "").split()).strip()
+
+
+def _project_blob(p: Dict[str, Any]) -> str:
+    return f"{p.get('title','')} {p.get('description','')} {p.get('tech_stack','')}".lower()
+
+
+def _is_hackathon_project(p: Dict[str, Any]) -> bool:
+    text = _project_blob(p)
+    if any(term in text for term in _HACKATHON_EVENT_TERMS):
+        return True
+    if "hackathon" in text:
+        return True
+    if re.search(r"\bhack\b", text):
+        return True
+    return False
+
+
+def _is_hackathon_win_project(p: Dict[str, Any]) -> bool:
+    if not _is_hackathon_project(p):
+        return False
+    text = _project_blob(p)
+    return any(term in text for term in _WIN_TERMS)
+
+
+def _parse_tech_stack(tech_stack: str) -> List[str]:
+    parts = [t.strip() for t in (tech_stack or "").split(",")]
+    return [p for p in parts if p]
+
+
+def _normalize_tech(s: str) -> str:
+    s = (s or "").strip().lower()
+    s = _TECH_ALIASES.get(s, s)
+    return s
+
+
+def _extract_requested_techs(question: str, known_techs: Sequence[str]) -> List[str]:
+    q = (question or "").lower()
+    hits: List[str] = []
+
+    # Alias-first (so "js" can match "JavaScript" even if "js" isn't in known_techs)
+    for short, full in _TECH_ALIASES.items():
+        if re.search(rf"\b{re.escape(short)}\b", q):
+            hits.append(full)
+
+    # Direct match against known techs
+    for tech in known_techs:
+        t = tech.strip()
+        if not t:
+            continue
+        if re.search(rf"\b{re.escape(t.lower())}\b", q):
+            hits.append(t.lower())
+
+    # Dedup, preserve order
+    out: List[str] = []
+    for h in hits:
+        hn = _normalize_tech(h)
+        if hn and hn not in out:
+            out.append(hn)
+    return out
+
+
+def _project_uses_tech(p: Dict[str, Any], tech_norm: str) -> bool:
+    ts = [_normalize_tech(t) for t in _parse_tech_stack(_safe_str(p.get("tech_stack")))]
+    if tech_norm in ts:
+        return True
+    # fallback substring match (handles "react.js" vs "react")
+    blob = ",".join(ts)
+    return tech_norm in blob
+
+
+def fetch_projects(conn) -> List[Dict[str, Any]]:
+    """
+    Fetch all portfolio projects from the database connection.
+    Does NOT return github_url to avoid accidental link leakage in responses.
+    """
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, title, description, tech_stack, created_at
+        FROM projects
+        ORDER BY created_at DESC, id DESC
+        """
+    )
+
+    projects: List[Dict[str, Any]] = []
+    for row in cursor.fetchall():
+        # row: (id, title, description, tech_stack, created_at)
+        projects.append(
+            {
+                "id": row[0],
+                "title": _safe_str(row[1]),
+                "description": _safe_str(row[2]),
+                "tech_stack": _safe_str(row[3]),
+                "created_at": _safe_str(row[4]),
+            }
+        )
+    return projects
+
+
+def _best_project_match(projects: Sequence[Dict[str, Any]], question: str) -> Optional[Dict[str, Any]]:
+    q = (question or "").strip()
+    if not q or not projects:
+        return None
+
+    titles = [p.get("title", "") for p in projects]
+    # Try direct substring match first
+    ql = q.lower()
+    for p in projects:
+        t = (p.get("title", "") or "").lower()
+        if t and t in ql:
+            return p
+
+    # Then fuzzy match (best effort)
+    best = None
+    best_score = 0.0
+    for p in projects:
+        title = p.get("title", "") or ""
+        score = difflib.SequenceMatcher(a=title.lower(), b=ql).ratio()
+        if score > best_score:
+            best_score = score
+            best = p
+
+    # Only accept if reasonably confident
+    return best if best_score >= 0.62 else None
+
+
+def answer_portfolio_question(user_question: str, conn) -> Tuple[str, Dict[str, Any]]:
+    """
+    DB-first portfolio Q&A.
+    - Uses deterministic retrieval/filtering for reliability.
+    - Uses the model only for concise, on-style formatting when helpful.
+
+    Returns: (answer_text, debug_info)
+    """
+    question = _normalize_space(user_question)
+    ql = question.lower()
+
+    projects = fetch_projects(conn)
+    debug: Dict[str, Any] = {"projects_total": len(projects)}
+
+    if not question:
+        return ("Ask a question about the portfolio projects (tech, hackathons, or a specific project).", debug)
+
+    if not projects:
+        return ("No projects are currently listed in the portfolio database.", debug)
+
+    # Precompute known techs
+    known_techs_set = set()
+    for p in projects:
+        for t in _parse_tech_stack(_safe_str(p.get("tech_stack"))):
+            known_techs_set.add(t.strip().lower())
+    known_techs = sorted([t for t in known_techs_set if t])
+
+    asked_techs = _extract_requested_techs(question, known_techs)
+    debug["asked_techs"] = asked_techs
+
+    # Hackathon queries (list / count / wins)
+    if "hackathon" in ql or re.search(r"\bhack\b", ql):
+        hack_projects = [p for p in projects if _is_hackathon_project(p)]
+        hack_win_projects = [p for p in projects if _is_hackathon_win_project(p)]
+        debug["hackathon_projects"] = len(hack_projects)
+        debug["hackathon_win_projects"] = len(hack_win_projects)
+
+        wants_count = bool(re.search(r"\bhow many\b|\bcount\b|\bnumber of\b", ql))
+        wants_wins = any(w in ql for w in ["won", "win", "wins", "winner", "winners", "awards", "prizes", "first place"])
+        wants_list = any(w in ql for w in ["list", "which", "show", "what are", "what projects"])
+
+        if wants_count and wants_wins:
+            n = len(hack_win_projects)
+            return (f"{_CANDIDATE_NAME} has {n} hackathon-related project{'s' if n != 1 else ''} that mention wins/awards.", debug)
+
+        if wants_count:
+            n = len(hack_projects)
+            return (f"{_CANDIDATE_NAME} has {n} hackathon-related project{'s' if n != 1 else ''} in the portfolio.", debug)
+
+        if wants_list or True:
+            if not hack_projects:
+                return ("No hackathon-related projects were found in the portfolio database.", debug)
+            lines = [f"Here are the hackathon-related projects in {_CANDIDATE_NAME}'s portfolio:"]
+            for p in hack_projects[:12]:
+                title = p.get("title", "Untitled")
+                tech = _safe_str(p.get("tech_stack"))
+                lines.append(f"- {title} — Tech: {tech}")
+            if len(hack_projects) > 12:
+                lines.append(f"- …and {len(hack_projects) - 12} more.")
+            return ("\n".join(lines), debug)
+
+    # Most recent project
+    if any(kw in ql for kw in ["most recent", "latest", "newest"]):
+        p = projects[0]
+        return (
+            "\n".join(
+                [
+                    f"{_CANDIDATE_NAME}'s most recent project is **{p.get('title','')}**.",
+                    f"- Tech: {p.get('tech_stack','')}",
+                    f"- Summary: {_normalize_space(p.get('description',''))}",
+                ]
+            ),
+            debug,
+        )
+
+    # List all projects
+    if re.search(r"\blist\b|\bshow\b|\ball projects\b", ql):
+        lines = [f"{_CANDIDATE_NAME} has {len(projects)} projects in the portfolio:"]
+        for p in projects[:20]:
+            lines.append(f"- {p.get('title','Untitled')} — Tech: {p.get('tech_stack','')}")
+        if len(projects) > 20:
+            lines.append(f"- …and {len(projects) - 20} more.")
+        return ("\n".join(lines), debug)
+
+    # Count projects (possibly by tech)
+    if re.search(r"\bhow many\b|\bcount\b|\bnumber of\b", ql) and "project" in ql:
+        if asked_techs:
+            tech_norm = asked_techs[0]
+            matches = [p for p in projects if _project_uses_tech(p, tech_norm)]
+            return (f"{_CANDIDATE_NAME} has {len(matches)} project{'s' if len(matches) != 1 else ''} that use {tech_norm}.", debug)
+        return (f"{_CANDIDATE_NAME} has {len(projects)} projects in the portfolio.", debug)
+
+    # Technology inventory queries
+    if any(kw in ql for kw in ["tech stack", "technologies", "tools", "what did", "what has"]) and any(
+        kw in ql for kw in ["used", "use", "worked with", "experience"]
+    ):
+        # If they asked for a specific tech, list matching projects
+        if asked_techs:
+            tech_norm = asked_techs[0]
+            matches = [p for p in projects if _project_uses_tech(p, tech_norm)]
+            if not matches:
+                return (f"No projects explicitly list {tech_norm} in the tech stack.", debug)
+            lines = [f"Projects that use {tech_norm}:"]
+            for p in matches[:12]:
+                lines.append(f"- {p.get('title','Untitled')} — Tech: {p.get('tech_stack','')}")
+            if len(matches) > 12:
+                lines.append(f"- …and {len(matches) - 12} more.")
+            return ("\n".join(lines), debug)
+
+        # Otherwise list overall tech inventory (bounded)
+        techs_pretty = sorted({t for p in projects for t in _parse_tech_stack(_safe_str(p.get("tech_stack"))) if t.strip()})
+        if not techs_pretty:
+            return ("No technologies were found in the portfolio database.", debug)
+        top = techs_pretty[:40]
+        suffix = f" (plus {len(techs_pretty) - 40} more)" if len(techs_pretty) > 40 else ""
+        return (f"{_CANDIDATE_NAME}'s portfolio includes: {', '.join(top)}{suffix}", debug)
+
+    # Specific project deep-dive
+    matched = _best_project_match(projects, question)
+    if matched:
+        return (
+            "\n".join(
+                [
+                    f"**{matched.get('title','')}**",
+                    f"- Tech: {matched.get('tech_stack','')}",
+                    f"- Summary: {_normalize_space(matched.get('description',''))}",
+                ]
+            ),
+            debug,
+        )
+
+    # Model formatting fallback with full DB context (no links, no code)
+    if client:
+        context_lines = []
+        for p in projects[:25]:
+            context_lines.append(
+                f"- {p.get('title','Untitled')} | Tech: {p.get('tech_stack','')} | Description: {_normalize_space(p.get('description',''))}"
+            )
+
+        prompt = f"""
+Portfolio database snapshot (projects):
+{chr(10).join(context_lines)}
+
+User question: {question}
+
+Answer with a short direct line, then 3–7 bullets. Do not include GitHub links. Do not paste code.
+""".strip()
+
+        response = call_hf_chat(
+            messages=[
+                {"role": "system", "content": _PORTFOLIO_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=220,
+            temperature=0.3,
+        )
+        if response:
+            return (response.strip(), debug)
+
+    # Hard fallback
+    return (
+        f"I can answer questions about {_CANDIDATE_NAME}'s portfolio projects (tech used, hackathons, or specific projects). Try asking: “Which projects are hackathon-related?”",
+        debug,
+    )
 
 
 def create_sql_query(user_question):
