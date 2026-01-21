@@ -63,7 +63,7 @@ def _require_admin():
 
 def _parse_project_date(value):
     """
-    Accepts YYYY-MM-DD or empty/null. Returns date | None, or (None, error_response)
+    Accepts YYYY-MM-DD or empty/null. Returns date | None.
     """
     if value is None:
         return None
@@ -73,7 +73,7 @@ def _parse_project_date(value):
     try:
         return date.fromisoformat(s)
     except Exception:
-        return None
+        return "INVALID"
 
 # ===========================
 # API ROUTES
@@ -135,6 +135,8 @@ def create_project():
         tech_stack = data['tech_stack'].strip()
         github_url = data.get('github_url', '').strip() or None
         project_date = _parse_project_date(data.get('project_date'))
+        if project_date == "INVALID":
+            return jsonify({'error': 'Invalid project_date. Use YYYY-MM-DD.'}), 400
         
         # Validation
         if len(title) > 200:
@@ -240,6 +242,8 @@ def update_project(project_id):
         tech_stack = str(data['tech_stack']).strip()
         github_url = str(data.get('github_url', '')).strip() or None
         project_date = _parse_project_date(data.get('project_date'))
+        if project_date == "INVALID":
+            return jsonify({'error': 'Invalid project_date. Use YYYY-MM-DD.'}), 400
 
         if len(title) > 200:
             return jsonify({'error': 'Title too long'}), 400

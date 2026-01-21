@@ -7,6 +7,7 @@ import os
 import re
 import logging
 import difflib
+from datetime import date
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 from openai import OpenAI
 
@@ -136,6 +137,121 @@ def _normalize_space(s: str) -> str:
     return " ".join((s or "").split()).strip()
 
 
+def _tokenize(s: str) -> List[str]:
+    return [t for t in re.split(r"[^a-z0-9]+", (s or "").lower()) if len(t) >= 3]
+
+
+def _parse_dateish(value: Any) -> Optional[date]:
+    """
+    Parse dates coming from Postgres (date object) or SQLite (string).
+    Accepts:
+    - YYYY-MM-DD
+    - YYYY-MM-DDTHH:MM...
+    - YYYY-MM-DD HH:MM...
+    """
+    if value is None:
+        return None
+    if isinstance(value, date):
+        return value
+    s = str(value).strip()
+    if not s:
+        return None
+    s10 = s[:10]
+    try:
+        return date.fromisoformat(s10)
+    except Exception:
+        return None
+
+
+_MONTHS = {
+    "jan": 1,
+    "january": 1,
+    "feb": 2,
+    "february": 2,
+    "mar": 3,
+    "march": 3,
+    "apr": 4,
+    "april": 4,
+    "may": 5,
+    "jun": 6,
+    "june": 6,
+    "jul": 7,
+    "july": 7,
+    "aug": 8,
+    "august": 8,
+    "sep": 9,
+    "sept": 9,
+    "september": 9,
+    "oct": 10,
+    "october": 10,
+    "nov": 11,
+    "november": 11,
+    "dec": 12,
+    "december": 12,
+}
+
+
+def _month_range(year: int, month: int) -> Tuple[date, date]:
+    start = date(year, month, 1)
+    if month == 12:
+        end = date(year + 1, 1, 1)
+    else:
+        end = date(year, month + 1, 1)
+    return start, end
+
+
+def _extract_date_range(question: str) -> Optional[Tuple[date, date, str]]:
+    """
+    Detect queries like:
+    - "october 2025", "oct 2025"
+    - "2025-10", "2025/10"
+    - "10/2025"
+    - "in 2025"
+    Returns (start, end, label)
+    """
+    q = (question or "").lower()
+
+    # Month name + year (e.g., october 2025)
+    m = re.search(r"\b([a-z]{3,9})\s+(\d{4})\b", q)
+    if m and m.group(1) in _MONTHS:
+        month = _MONTHS[m.group(1)]
+        year = int(m.group(2))
+        start, end = _month_range(year, month)
+        label = f"{m.group(1).title()} {year}"
+        return start, end, label
+
+    # YYYY-MM or YYYY/MM
+    m = re.search(r"\b(\d{4})[-/](\d{1,2})\b", q)
+    if m:
+        year = int(m.group(1))
+        month = int(m.group(2))
+        if 1 <= month <= 12:
+            start, end = _month_range(year, month)
+            label = f"{year}-{month:02d}"
+            return start, end, label
+
+    # MM/YYYY
+    m = re.search(r"\b(\d{1,2})[/-](\d{4})\b", q)
+    if m:
+        month = int(m.group(1))
+        year = int(m.group(2))
+        if 1 <= month <= 12:
+            start, end = _month_range(year, month)
+            label = f"{year}-{month:02d}"
+            return start, end, label
+
+    # Year-only (e.g., in 2025)
+    m = re.search(r"\b(in\s+)?(\d{4})\b", q)
+    if m:
+        year = int(m.group(2))
+        start = date(year, 1, 1)
+        end = date(year + 1, 1, 1)
+        label = f"{year}"
+        return start, end, label
+
+    return None
+
+
 def _project_blob(p: Dict[str, Any]) -> str:
     return f"{p.get('title','')} {p.get('description','')} {p.get('tech_stack','')}".lower()
 
@@ -239,26 +355,63 @@ def _best_project_match(projects: Sequence[Dict[str, Any]], question: str) -> Op
     if not q or not projects:
         return None
 
-    titles = [p.get("title", "") for p in projects]
-    # Try direct substring match first
     ql = q.lower()
-    for p in projects:
-        t = (p.get("title", "") or "").lower()
-        if t and t in ql:
-            return p
 
-    # Then fuzzy match (best effort)
+    # Try to extract a likely project phrase (e.g., "what about X", "tell me about X", "technologies did X use")
+    phrase = None
+    m = re.search(r"\btechnolog(?:y|ies)\s+did\s+(.+?)\s+use\b", ql)
+    if m:
+        phrase = m.group(1)
+    if not phrase:
+        m = re.search(r"\b(?:what about|tell me about|about)\s+(.+)$", ql)
+        if m:
+            phrase = m.group(1)
+    phrase = (phrase or "").strip(" ?.!\"'")
+
+    candidates = [ql]
+    if phrase and phrase not in candidates:
+        candidates.insert(0, phrase)
+
+    # 1) Direct substring match on candidates (fast + best)
+    for cand in candidates:
+        for p in projects:
+            t = (p.get("title", "") or "").lower()
+            if t and t in cand:
+                return p
+
+    # 2) Token overlap score (handles "personal portfolio" vs "Personal Portfolio Website")
+    best = None
+    best_score = 0.0
+    for p in projects:
+        title = (p.get("title", "") or "").lower()
+        title_tokens = set(_tokenize(title))
+        if not title_tokens:
+            continue
+        for cand in candidates:
+            cand_tokens = set(_tokenize(cand))
+            if not cand_tokens:
+                continue
+            overlap = len(title_tokens.intersection(cand_tokens))
+            score = overlap / max(1, len(title_tokens))
+            if score > best_score:
+                best_score = score
+                best = p
+
+    if best and best_score >= 0.45:
+        return best
+
+    # 3) Fuzzy match (last resort)
     best = None
     best_score = 0.0
     for p in projects:
         title = p.get("title", "") or ""
-        score = difflib.SequenceMatcher(a=title.lower(), b=ql).ratio()
-        if score > best_score:
-            best_score = score
-            best = p
+        for cand in candidates:
+            score = difflib.SequenceMatcher(a=title.lower(), b=cand).ratio()
+            if score > best_score:
+                best_score = score
+                best = p
 
-    # Only accept if reasonably confident
-    return best if best_score >= 0.62 else None
+    return best if best_score >= 0.55 else None
 
 
 def answer_portfolio_question(user_question: str, conn) -> Tuple[str, Dict[str, Any]]:
@@ -297,6 +450,38 @@ def answer_portfolio_question(user_question: str, conn) -> Tuple[str, Dict[str, 
 
     asked_techs = _extract_requested_techs(question, known_techs)
     debug["asked_techs"] = asked_techs
+
+    # Date-based queries (month/year/year-only) based on project_date (preferred) or created_at fallback.
+    date_range = _extract_date_range(question)
+    if date_range and any(kw in ql for kw in ["project", "projects", "built", "made", "created", "in "]):
+        start, end, label = date_range
+        matched_projects = []
+        missing_project_date = 0
+        for p in projects:
+            pd = _parse_dateish(p.get("project_date"))
+            if not pd:
+                missing_project_date += 1
+                pd = _parse_dateish(p.get("created_at"))
+            if pd and start <= pd < end:
+                matched_projects.append((pd, p))
+
+        matched_projects.sort(key=lambda x: x[0])
+        debug["date_label"] = label
+        debug["date_matches"] = len(matched_projects)
+        debug["projects_missing_project_date"] = missing_project_date
+
+        if not matched_projects:
+            note = ""
+            if missing_project_date:
+                note = f" ({missing_project_date} project{'s' if missing_project_date != 1 else ''} don’t have a project date set yet.)"
+            return (f"No projects were found in {label}.{note}", debug)
+
+        lines = [f"Projects in {label}:"]
+        for pd, p in matched_projects[:15]:
+            lines.append(f"- {p.get('title','Untitled')} — Date: {pd.isoformat()} — Tech: {p.get('tech_stack','')}")
+        if len(matched_projects) > 15:
+            lines.append(f"- …and {len(matched_projects) - 15} more.")
+        return ("\n".join(lines), debug)
 
     # Hackathon queries (list / count / wins)
     if "hackathon" in ql or re.search(r"\bhack\b", ql):
@@ -463,10 +648,18 @@ Answer with a short direct line, then 3–7 bullets. Do not include GitHub links
                 {"role": "system", "content": _PORTFOLIO_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=220,
-            temperature=0.3,
+            max_tokens=380,
+            temperature=0.2,
         )
         if response:
+            # If the model got cut mid-word/bullet, fall back to deterministic help text.
+            tail = response.strip()[-1:] if response.strip() else ""
+            if response.strip().endswith("-") or (tail and tail not in ".!?"):
+                # Keep it safe and concise rather than returning a half sentence.
+                return (
+                    f"I can answer questions about {_CANDIDATE_NAME}'s portfolio projects. Try asking about a specific project name, technologies used, hackathons, or project dates.",
+                    debug,
+                )
             return (response.strip(), debug)
 
     # Hard fallback
