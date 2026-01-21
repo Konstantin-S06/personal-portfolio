@@ -46,6 +46,7 @@ You are a portfolio Q&A bot for {_CANDIDATE_NAME}'s website.
 Follow these rules:
 - Voice: confident, professional, third person (use "they" / "the candidate" or "{_CANDIDATE_NAME}").
 - Output: short bullets by default. Usually 3–7 bullets. Be technically deep but brief.
+- Formatting: Use line breaks. Output exactly: one short line, then bullets each on their own line starting with "- ".
 - Accuracy: ONLY use the provided portfolio database data. Do NOT invent projects, awards, employers, dates, or metrics.
 - Scope: ONLY answer questions about {_CANDIDATE_NAME}'s projects and portfolio. If the question is about someone else or general topics unrelated to the portfolio, politely refuse and redirect to portfolio questions.
 - Positive framing: present the candidate well (problem-solving, leadership, perseverance) without sounding fake. Mild qualitative emphasis is ok.
@@ -135,6 +136,36 @@ def _safe_str(v: Any) -> str:
 
 def _normalize_space(s: str) -> str:
     return " ".join((s or "").split()).strip()
+
+
+def _postprocess_ai_answer(text: str) -> str:
+    """
+    Make model output readable in the UI:
+    - Ensure bullets appear on new lines
+    - Ensure a blank line between summary and bullets (optional)
+    - Avoid one giant paragraph
+    """
+    if not text:
+        return text
+
+    t = str(text).replace("\r\n", "\n").replace("\r", "\n").strip()
+
+    # Convert inline bullet separators into real newlines (common model behavior)
+    # Examples:
+    # "Answer. - Bullet1 - Bullet2" -> "Answer.\n- Bullet1\n- Bullet2"
+    t = re.sub(r"\s-\s(?=[A-Za-z0-9])", "\n- ", t)
+    t = re.sub(r"\.\s*\n-\s", ".\n- ", t)
+    t = re.sub(r"\.\s*-\s", ".\n- ", t)
+
+    # If we still have no newlines but multiple sentences, add a soft break after the first sentence.
+    if "\n" not in t:
+        parts = re.split(r"(?<=[.!?])\s+", t, maxsplit=1)
+        if len(parts) == 2:
+            t = parts[0].strip() + "\n" + parts[1].strip()
+
+    # Collapse excessive blank lines
+    t = re.sub(r"\n{3,}", "\n\n", t).strip()
+    return t
 
 
 def _tokenize(s: str) -> List[str]:
@@ -640,7 +671,13 @@ Portfolio database snapshot (projects):
 
 User question: {question}
 
-Answer with a short direct line, then 3–7 bullets. Do not include GitHub links. Do not paste code.
+FORMAT EXACTLY LIKE THIS (use newlines):
+<one short sentence answering the question>
+- <bullet 1>
+- <bullet 2>
+- <bullet 3>
+
+Rules: 3–7 bullets, no GitHub links, no code, no markdown code blocks.
 """.strip()
 
         response = call_hf_chat(
@@ -652,9 +689,10 @@ Answer with a short direct line, then 3–7 bullets. Do not include GitHub links
             temperature=0.2,
         )
         if response:
-            # If the model got cut mid-word/bullet, fall back to deterministic help text.
-            tail = response.strip()[-1:] if response.strip() else ""
-            if response.strip().endswith("-") or (tail and tail not in ".!?"):
+            response = _postprocess_ai_answer(response)
+
+            # If the model got cut mid-word/bullet (common: trailing hyphen), avoid returning a half-answer.
+            if re.search(r"[-‐‑–—]\s*$", response.strip()):
                 # Keep it safe and concise rather than returning a half sentence.
                 return (
                     f"I can answer questions about {_CANDIDATE_NAME}'s portfolio projects. Try asking about a specific project name, technologies used, hackathons, or project dates.",
