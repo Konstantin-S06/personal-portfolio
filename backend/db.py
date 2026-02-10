@@ -86,8 +86,8 @@ def _to_http_fallback_url(url: str) -> str:
 
 
 class _TursoCursor:
-    def __init__(self, client_sync):
-        self._client = client_sync
+    def __init__(self, conn: "_TursoConnection"):
+        self._conn = conn
         self._last_result = None
         self.lastrowid = None
 
@@ -99,7 +99,7 @@ class _TursoCursor:
                 args = list(params)
             else:
                 args = params
-        self._last_result = self._client.execute(str(sql), args)
+        self._last_result = self._conn._execute_with_fallback(str(sql), args)
         try:
             self.lastrowid = self._last_result.last_insert_rowid
         except Exception:
@@ -117,11 +117,72 @@ class _TursoCursor:
 
 
 class _TursoConnection:
-    def __init__(self, client_sync):
-        self._client = client_sync
+    def __init__(self, primary_url: str, auth_token: str | None, fallback_url: str | None = None):
+        self._primary_url = primary_url
+        self._fallback_url = fallback_url
+        self._auth_token = auth_token
+        self._client = None
+        self._current_url = None
 
     def cursor(self):
-        return _TursoCursor(self._client)
+        return _TursoCursor(self)
+
+    def _ensure_client(self):
+        if self._client is None:
+            import libsql_client
+
+            self._client = libsql_client.create_client_sync(
+                self._primary_url,
+                auth_token=self._auth_token,
+            )
+            self._current_url = self._primary_url
+
+    def _switch_to_fallback(self):
+        if not self._fallback_url or self._current_url == self._fallback_url:
+            return False
+        try:
+            if self._client is not None:
+                try:
+                    self._client.close()
+                except Exception:
+                    pass
+        finally:
+            self._client = None
+            self._current_url = None
+
+        import libsql_client
+
+        self._client = libsql_client.create_client_sync(
+            self._fallback_url,
+            auth_token=self._auth_token,
+        )
+        self._current_url = self._fallback_url
+        return True
+
+    @staticmethod
+    def _looks_like_ws_handshake_error(e: Exception) -> bool:
+        # Be defensive: we don't want to depend on aiohttp types at import time.
+        name = e.__class__.__name__
+        msg = str(e)
+        if "WSServerHandshakeError" in name:
+            return True
+        if "Invalid response status" in msg and "wss://" in msg:
+            return True
+        if "HRANA_WEBSOCKET_ERROR" in msg:
+            return True
+        return False
+
+    def _execute_with_fallback(self, sql: str, args):
+        self._ensure_client()
+        try:
+            return self._client.execute(sql, args)
+        except Exception as e:
+            # If WS transport fails (common on some hosts), retry over HTTPS once.
+            if self._fallback_url and self._looks_like_ws_handshake_error(e):
+                switched = self._switch_to_fallback()
+                if switched:
+                    return self._client.execute(sql, args)
+            raise
 
     def commit(self):
         # Turso/libSQL executes statements immediately; keep for API compatibility.
@@ -129,7 +190,8 @@ class _TursoConnection:
 
     def close(self):
         try:
-            self._client.close()
+            if self._client is not None:
+                self._client.close()
         except Exception:
             pass
 
@@ -163,24 +225,12 @@ def get_db_connection():
     otherwise local SQLite for development.
     """
     if IS_TURSO:
-        import libsql_client
         primary_url = _to_libsql_url(TURSO_DATABASE_URL)
-        try:
-            client = libsql_client.create_client_sync(
-                primary_url,
-                auth_token=TURSO_AUTH_TOKEN,
-            )
-            return _TursoConnection(client)
-        except Exception as e:
-            # Robust fallback: retry with HTTP transport (https://...) if WS handshake fails.
-            fallback_url = _to_http_fallback_url(primary_url)
-            if fallback_url and fallback_url != primary_url:
-                client = libsql_client.create_client_sync(
-                    fallback_url,
-                    auth_token=TURSO_AUTH_TOKEN,
-                )
-                return _TursoConnection(client)
-            raise e
+        fallback_url = _to_http_fallback_url(primary_url)
+        # Always provide fallback; the adapter will retry at execute-time if needed.
+        if fallback_url == primary_url:
+            fallback_url = None
+        return _TursoConnection(primary_url=primary_url, auth_token=TURSO_AUTH_TOKEN, fallback_url=fallback_url)
 
     if IS_POSTGRES:
         # Production: Use PostgreSQL with psycopg3
