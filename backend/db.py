@@ -3,6 +3,7 @@ Database Module for Portfolio Backend - PostgreSQL Compatible
 """
 
 import os
+import urllib.parse
 
 # Load environment variables from backend/.env if present (local dev convenience).
 # This keeps secrets out of git while allowing simple local setup.
@@ -30,7 +31,23 @@ def _to_libsql_url(url: str) -> str:
     - file:///... (local file)
     Users will typically provide TURSO_DATABASE_URL in the right libsql:// form.
     """
-    return str(url).strip()
+    u = str(url).strip()
+    if not u:
+        return u
+
+    # libsql-client uses the URL path verbatim when building the ws/wss URL.
+    # If the path is empty (e.g., "libsql://host"), it may produce "wss://host"
+    # which can cause handshake failures. Normalize to at least "/" (i.e. "libsql://host/").
+    try:
+        parsed = urllib.parse.urlparse(u)
+        if parsed.scheme in ("libsql", "ws", "wss", "http", "https") and (parsed.path == ""):
+            u = urllib.parse.urlunparse(
+                (parsed.scheme, parsed.netloc, "/", parsed.params, parsed.query, parsed.fragment)
+            )
+    except Exception:
+        pass
+
+    return u
 
 
 class _TursoCursor:
