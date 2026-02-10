@@ -11,6 +11,9 @@ gunicorn==21.2.0
 # Database adapter for PostgreSQL
 psycopg[binary]==3.2.1
 
+# Database adapter for Turso (libSQL / hosted SQLite)
+libsql-client==0.3.1
+
 # Environment variable management
 python-dotenv==1.0.0
 

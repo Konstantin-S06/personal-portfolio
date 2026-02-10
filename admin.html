@@ -131,6 +131,22 @@
                         </button>
                     </div>
                 </div>
+
+                <div class="admin-form-container" style="margin-top: 2rem;">
+                    <h2>Database Migration</h2>
+                    <p style="color:#6b7280; margin-top:0.25rem;">
+                        If your old PostgreSQL database is still active, you can migrate all projects/contacts into Turso without Render Shell access.
+                    </p>
+                    <div id="migration-message" class="form-message" style="display: none;"></div>
+                    <button
+                        type="button"
+                        class="btn-primary"
+                        style="background:#111827;"
+                        onclick="migrateFromPostgres()"
+                    >
+                        Migrate Postgres → Turso
+                    </button>
+                </div>
             </div>
         </section>
     </main>

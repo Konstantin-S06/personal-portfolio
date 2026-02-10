@@ -9,7 +9,7 @@ from datetime import datetime, date
 import hashlib
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from db import init_db, get_db_connection
+from db import init_db, get_db_connection, IS_POSTGRES
 
 # ===========================
 # APPLICATION SETUP
@@ -40,6 +40,7 @@ with app.app_context():
 
 # Check database type once
 DATABASE_URL = os.getenv('DATABASE_URL')
+TURSO_DATABASE_URL = os.getenv('TURSO_DATABASE_URL')
 
 def _expected_admin_token() -> str:
     """
@@ -94,15 +95,22 @@ def get_projects():
         
         projects = []
         for row in cursor.fetchall():
+            def _iso(v):
+                if not v:
+                    return None
+                if hasattr(v, "isoformat"):
+                    return v.isoformat()
+                return str(v)
+
             projects.append({
                 'id': row[0],
                 'title': row[1],
                 'description': row[2],
                 'tech_stack': row[3],
                 'github_url': row[4],
-                'project_date': row[5].isoformat() if row[5] else None,
-                'created_at': row[6].isoformat() if row[6] else None,
-                'updated_at': row[7].isoformat() if row[7] else None
+                'project_date': _iso(row[5]),
+                'created_at': _iso(row[6]),
+                'updated_at': _iso(row[7]),
             })
         
         conn.close()
@@ -152,7 +160,7 @@ def create_project():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        if DATABASE_URL:
+        if IS_POSTGRES:
             # PostgreSQL - use RETURNING to get the ID
             cursor.execute('''
                 INSERT INTO projects (title, description, tech_stack, github_url, project_date)
@@ -161,7 +169,7 @@ def create_project():
             ''', (title, description, tech_stack, github_url, project_date))
             project_id = cursor.fetchone()[0]
         else:
-            # SQLite
+            # SQLite / Turso (libSQL)
             cursor.execute('''
                 INSERT INTO projects (title, description, tech_stack, github_url, project_date)
                 VALUES (?, ?, ?, ?, ?)
@@ -193,7 +201,7 @@ def delete_project(project_id):
         cursor = conn.cursor()
         
         # Check if project exists
-        if DATABASE_URL:
+        if IS_POSTGRES:
             cursor.execute('SELECT id FROM projects WHERE id = %s', (project_id,))
         else:
             cursor.execute('SELECT id FROM projects WHERE id = ?', (project_id,))
@@ -203,7 +211,7 @@ def delete_project(project_id):
             return jsonify({'error': 'Project not found'}), 404
         
         # Delete the project
-        if DATABASE_URL:
+        if IS_POSTGRES:
             cursor.execute('DELETE FROM projects WHERE id = %s', (project_id,))
         else:
             cursor.execute('DELETE FROM projects WHERE id = ?', (project_id,))
@@ -258,7 +266,7 @@ def update_project(project_id):
         cursor = conn.cursor()
 
         # Check if project exists
-        if DATABASE_URL:
+        if IS_POSTGRES:
             cursor.execute('SELECT id FROM projects WHERE id = %s', (project_id,))
         else:
             cursor.execute('SELECT id FROM projects WHERE id = ?', (project_id,))
@@ -266,7 +274,7 @@ def update_project(project_id):
             conn.close()
             return jsonify({'error': 'Project not found'}), 404
 
-        if DATABASE_URL:
+        if IS_POSTGRES:
             cursor.execute(
                 '''
                 UPDATE projects
@@ -336,7 +344,7 @@ def submit_contact():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        if DATABASE_URL:
+        if IS_POSTGRES:
             # PostgreSQL - use RETURNING to get the ID
             cursor.execute('''
                 INSERT INTO contacts (name, email, message)
@@ -345,7 +353,7 @@ def submit_contact():
             ''', (name, email, message))
             contact_id = cursor.fetchone()[0]
         else:
-            # SQLite
+            # SQLite / Turso (libSQL)
             cursor.execute('''
                 INSERT INTO contacts (name, email, message)
                 VALUES (?, ?, ?)
@@ -385,6 +393,163 @@ def verify_admin():
     except Exception as e:
         app.logger.error(f"Error verifying admin: {str(e)}")
         return jsonify({'error': 'Verification failed'}), 500
+
+
+@app.route('/api/admin/migrate', methods=['POST'])
+def admin_migrate_postgres_to_turso():
+    """
+    POST /api/admin/migrate
+
+    Admin-only: migrate data from old Postgres (DATABASE_URL) into current DB (Turso)
+    without requiring Render shell access.
+
+    Body JSON (optional):
+      - wipe_target: bool (default false). If true, clears Turso tables first.
+      - upsert: bool (default true). If true, uses INSERT OR REPLACE semantics.
+    """
+    try:
+        auth_error = _require_admin()
+        if auth_error:
+            return auth_error
+
+        if not os.getenv("DATABASE_URL"):
+            return jsonify({"error": "DATABASE_URL is not set (source Postgres not configured)."}), 400
+        if not os.getenv("TURSO_DATABASE_URL"):
+            return jsonify({"error": "TURSO_DATABASE_URL is not set (target Turso not configured)."}), 400
+
+        data = request.get_json(silent=True) or {}
+        wipe_target = bool(data.get("wipe_target", False))
+        upsert = bool(data.get("upsert", True))
+
+        # Connect to source Postgres directly (do not use db.get_db_connection because it prefers Turso).
+        import psycopg
+
+        pg_conn = psycopg.connect(os.getenv("DATABASE_URL"))
+
+        # Target is whatever get_db_connection() returns (should be Turso in production when configured).
+        target_conn = get_db_connection()
+        target_cur = target_conn.cursor()
+
+        try:
+            # Ensure target schema exists (init_db already ran at startup, but keep safe for manual calls).
+            init_db()
+
+            if wipe_target:
+                target_cur.execute("DELETE FROM contacts")
+                target_cur.execute("DELETE FROM projects")
+                target_conn.commit()
+
+            # Read projects from Postgres
+            pg_cur = pg_conn.cursor()
+            pg_cur.execute(
+                """
+                SELECT id, title, description, tech_stack, github_url, project_date, created_at, updated_at
+                FROM projects
+                ORDER BY id ASC
+                """
+            )
+            projects = pg_cur.fetchall()
+
+            # Read contacts from Postgres
+            pg_cur.execute(
+                """
+                SELECT id, name, email, message, created_at
+                FROM contacts
+                ORDER BY id ASC
+                """
+            )
+            contacts = pg_cur.fetchall()
+
+            proj_stmt = (
+                """
+                INSERT OR REPLACE INTO projects
+                  (id, title, description, tech_stack, github_url, project_date, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """
+                if upsert
+                else """
+                INSERT INTO projects
+                  (id, title, description, tech_stack, github_url, project_date, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """
+            )
+
+            contact_stmt = (
+                """
+                INSERT OR REPLACE INTO contacts
+                  (id, name, email, message, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """
+                if upsert
+                else """
+                INSERT INTO contacts
+                  (id, name, email, message, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """
+            )
+
+            def _iso(v):
+                if v is None:
+                    return None
+                if hasattr(v, "isoformat"):
+                    return v.isoformat()
+                return str(v)
+
+            migrated_projects = 0
+            for r in projects:
+                target_cur.execute(
+                    proj_stmt,
+                    (
+                        r[0],
+                        r[1],
+                        r[2],
+                        r[3],
+                        r[4],
+                        _iso(r[5]),
+                        _iso(r[6]),
+                        _iso(r[7]),
+                    ),
+                )
+                migrated_projects += 1
+
+            migrated_contacts = 0
+            for r in contacts:
+                target_cur.execute(
+                    contact_stmt,
+                    (
+                        r[0],
+                        r[1],
+                        r[2],
+                        r[3],
+                        _iso(r[4]),
+                    ),
+                )
+                migrated_contacts += 1
+
+            target_conn.commit()
+
+            return jsonify(
+                {
+                    "success": True,
+                    "wipe_target": wipe_target,
+                    "upsert": upsert,
+                    "projects_migrated": migrated_projects,
+                    "contacts_migrated": migrated_contacts,
+                }
+            ), 200
+        finally:
+            try:
+                pg_conn.close()
+            except Exception:
+                pass
+            try:
+                target_conn.close()
+            except Exception:
+                pass
+
+    except Exception as e:
+        app.logger.error(f"Migration error: {str(e)}")
+        return jsonify({"error": "Migration failed", "details": str(e)}), 500
 
 
 @app.route('/api/chat', methods=['POST'])

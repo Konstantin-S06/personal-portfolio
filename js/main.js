@@ -464,6 +464,57 @@ async function deleteProject(projectId, projectTitle) {
     }
 }
 
+async function migrateFromPostgres() {
+    const messageDiv = document.getElementById('migration-message');
+    const adminToken = sessionStorage.getItem('admin_token') || '';
+
+    if (!adminToken) {
+        showMessage(messageDiv, 'Admin token missing. Refresh and re-authenticate.', 'error');
+        return;
+    }
+
+    const confirmed = confirm(
+        'Migrate ALL data from the old Postgres database into Turso?\n\n' +
+        'This will overwrite matching IDs in Turso. Recommended to run once.'
+    );
+    if (!confirmed) return;
+
+    try {
+        showMessage(messageDiv, 'Migration started... please wait.', 'success');
+
+        const response = await fetch(`${API_BASE_URL}/api/admin/migrate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Admin-Token': adminToken
+            },
+            body: JSON.stringify({
+                wipe_target: true,
+                upsert: true
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showMessage(
+                messageDiv,
+                `Migration complete. Projects: ${data.projects_migrated}, Contacts: ${data.contacts_migrated}`,
+                'success'
+            );
+            // Refresh admin list
+            if (typeof loadAdminProjects === 'function') {
+                loadAdminProjects();
+            }
+        } else {
+            showMessage(messageDiv, data.error || 'Migration failed.', 'error');
+        }
+    } catch (err) {
+        console.error('Migration error:', err);
+        showMessage(messageDiv, 'Network/server error during migration.', 'error');
+    }
+}
+
 function startEdit(project) {
     const formTitle = document.getElementById('admin-form-title');
     const editingIdEl = document.getElementById('editing-project-id');
@@ -518,3 +569,4 @@ window.submitContactForm = submitContactForm;
 window.deleteProject = deleteProject;
 window.startEdit = startEdit;
 window.cancelEdit = cancelEdit;
+window.migrateFromPostgres = migrateFromPostgres;
