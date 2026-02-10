@@ -50,6 +50,41 @@ def _to_libsql_url(url: str) -> str:
     return u
 
 
+def _to_http_fallback_url(url: str) -> str:
+    """
+    Convert libsql/ws/wss URLs to http/https for fallback transport.
+    This avoids Hrana WebSocket handshake issues in some environments.
+    """
+    u = str(url).strip()
+    if not u:
+        return u
+    try:
+        parsed = urllib.parse.urlparse(u)
+        scheme = parsed.scheme.lower()
+        if scheme == "libsql":
+            scheme = "https"
+        elif scheme == "wss":
+            scheme = "https"
+        elif scheme == "ws":
+            scheme = "http"
+        elif scheme in ("https", "http", "file"):
+            scheme = parsed.scheme
+        else:
+            scheme = parsed.scheme
+
+        path = parsed.path or "/"
+        return urllib.parse.urlunparse((scheme, parsed.netloc, path, parsed.params, parsed.query, parsed.fragment))
+    except Exception:
+        # Best-effort: simple replace
+        if u.startswith("libsql://"):
+            return "https://" + u[len("libsql://") :]
+        if u.startswith("wss://"):
+            return "https://" + u[len("wss://") :]
+        if u.startswith("ws://"):
+            return "http://" + u[len("ws://") :]
+        return u
+
+
 class _TursoCursor:
     def __init__(self, client_sync):
         self._client = client_sync
@@ -129,11 +164,23 @@ def get_db_connection():
     """
     if IS_TURSO:
         import libsql_client
-        client = libsql_client.create_client_sync(
-            _to_libsql_url(TURSO_DATABASE_URL),
-            auth_token=TURSO_AUTH_TOKEN,
-        )
-        return _TursoConnection(client)
+        primary_url = _to_libsql_url(TURSO_DATABASE_URL)
+        try:
+            client = libsql_client.create_client_sync(
+                primary_url,
+                auth_token=TURSO_AUTH_TOKEN,
+            )
+            return _TursoConnection(client)
+        except Exception as e:
+            # Robust fallback: retry with HTTP transport (https://...) if WS handshake fails.
+            fallback_url = _to_http_fallback_url(primary_url)
+            if fallback_url and fallback_url != primary_url:
+                client = libsql_client.create_client_sync(
+                    fallback_url,
+                    auth_token=TURSO_AUTH_TOKEN,
+                )
+                return _TursoConnection(client)
+            raise e
 
     if IS_POSTGRES:
         # Production: Use PostgreSQL with psycopg3

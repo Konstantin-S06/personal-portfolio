@@ -36,7 +36,12 @@ app.config['ENV'] = os.getenv('FLASK_ENV', 'production')
 
 # Initialize database on startup
 with app.app_context():
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        # Don't crash the whole service on transient DB connectivity issues.
+        # Endpoints will still error until the DB is reachable, but Render will be able to start the web process.
+        app.logger.error(f"Database initialization failed on startup: {e}")
 
 # Check database type once
 DATABASE_URL = os.getenv('DATABASE_URL')
