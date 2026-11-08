@@ -723,7 +723,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
 
   // Optional props around the clearing (tent / fence / statue) when the pack provides them.
   const props = kit?.byRole.get('prop') ?? [];
-  props.slice(0, 3).forEach((asset, i) => {
+  props.slice(0, 3).forEach((asset: any, i: number) => {
     const mesh = new THREE.Mesh(asset.geometry, kit!.material);
     const s = asset.targetHeight / Math.max(0.05, asset.height);
     const a = -0.6 + i * 0.7;
