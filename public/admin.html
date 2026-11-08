@@ -111,6 +111,60 @@
                             <small>Optional: Link to project repository</small>
                         </div>
 
+                        <div class="form-group">
+                            <label for="project-demo">Demo URL</label>
+                            <input type="url" id="project-demo" name="demo_url" placeholder="https://..." maxlength="300">
+                            <small>Optional: live demo or video</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="project-summary">Summary</label>
+                            <input type="text" id="project-summary" name="summary" maxlength="280" placeholder="One-liner for path signs and grid cards">
+                            <small>Optional, up to 280 characters</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="project-role">Role</label>
+                            <input type="text" id="project-role" name="role" maxlength="200" placeholder="e.g., Full-stack developer (team of 4)">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="project-context">Context</label>
+                            <input type="text" id="project-context" name="context" maxlength="200" placeholder="e.g., UofTHacks, 6-hour hackathon, 1st place">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="project-highlights">Highlights</label>
+                            <textarea id="project-highlights" name="highlights" rows="5" placeholder="One bullet per line"></textarea>
+                            <small>Optional: up to 6 bullets, one per line, each up to 240 characters</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="project-category">Category</label>
+                            <select id="project-category" name="category">
+                                <option value="">(none)</option>
+                                <option value="web">Web</option>
+                                <option value="ai_ml">AI / ML</option>
+                                <option value="systems">Systems</option>
+                                <option value="game">Game</option>
+                                <option value="research">Research</option>
+                                <option value="tooling">Tooling</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="project-featured">
+                                <input type="checkbox" id="project-featured" name="featured">
+                                Featured (gets a stop on the scroll path)
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="project-sort-order">Sort order</label>
+                            <input type="number" id="project-sort-order" name="sort_order" step="1" value="100">
+                            <small>Lower comes first, along the path and in the grid</small>
+                        </div>
+
                         <button 
                             type="button" 
                             id="submit-project-btn" 
@@ -153,7 +207,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2026 Konstantin Shtop. Built with vanilla HTML, CSS, and JavaScript. Backend powered by Python Flask.</p>
+            <p>&copy; 2026 Konstantin Shtop. Built with React, TypeScript and Three.js. Backend powered by Flask.</p>
         </div>
     </footer>
 

@@ -145,6 +145,18 @@ async function submitProject() {
     const projectDate = projectDateEl ? projectDateEl.value.trim() : '';
     const editingIdEl = document.getElementById('editing-project-id');
     const editingProjectId = editingIdEl ? editingIdEl.value.trim() : '';
+
+    const valueOf = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : '';
+    };
+    const demoUrl = valueOf('project-demo');
+    const highlights = valueOf('project-highlights')
+        .split('\n')
+        .map(l => l.trim())
+        .filter(Boolean);
+    const sortOrderRaw = valueOf('project-sort-order');
+    const featuredEl = document.getElementById('project-featured');
     
     const messageDiv = document.getElementById('admin-message');
     const submitBtn = document.getElementById('submit-project-btn');
@@ -161,6 +173,19 @@ async function submitProject() {
         return;
     }
     
+    if (demoUrl && !isValidUrl(demoUrl)) {
+        showMessage(messageDiv, 'Please enter a valid demo URL.', 'error');
+        return;
+    }
+    if (highlights.length > 6) {
+        showMessage(messageDiv, 'At most 6 highlights (one per line).', 'error');
+        return;
+    }
+    if (sortOrderRaw && !/^-?\d+$/.test(sortOrderRaw)) {
+        showMessage(messageDiv, 'Sort order must be a whole number.', 'error');
+        return;
+    }
+
     try {
         // Disable submit button to prevent double submission
         submitBtn.disabled = true;
@@ -186,7 +211,15 @@ async function submitProject() {
                 description: description,
                 tech_stack: techStack,
                 project_date: projectDate || null,
-                github_url: githubUrl || null
+                github_url: githubUrl || null,
+                demo_url: demoUrl || null,
+                summary: valueOf('project-summary') || null,
+                role: valueOf('project-role') || null,
+                context: valueOf('project-context') || null,
+                highlights: highlights,
+                category: valueOf('project-category') || null,
+                featured: featuredEl && featuredEl.checked ? 1 : 0,
+                sort_order: sortOrderRaw ? parseInt(sortOrderRaw, 10) : 100
             })
         });
         
@@ -534,6 +567,17 @@ function startEdit(project) {
     const dateEl = document.getElementById('project-date');
     if (dateEl) dateEl.value = project.project_date || '';
 
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    setVal('project-demo', project.demo_url || '');
+    setVal('project-summary', project.summary || '');
+    setVal('project-role', project.role || '');
+    setVal('project-context', project.context || '');
+    setVal('project-highlights', Array.isArray(project.highlights) ? project.highlights.join('\n') : '');
+    setVal('project-category', project.category || '');
+    setVal('project-sort-order', project.sort_order != null ? project.sort_order : 100);
+    const featuredEl = document.getElementById('project-featured');
+    if (featuredEl) featuredEl.checked = Number(project.featured) === 1;
+
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 }
 
@@ -549,11 +593,19 @@ function cancelEdit(silent = false) {
     if (submitBtn) submitBtn.textContent = 'Add Project';
 
     // Clear form
-    const ids = ['project-title', 'project-description', 'project-tech', 'project-github', 'project-date'];
+    const ids = [
+        'project-title', 'project-description', 'project-tech', 'project-github', 'project-date',
+        'project-demo', 'project-summary', 'project-role', 'project-context',
+        'project-highlights', 'project-category'
+    ];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
+    const sortEl = document.getElementById('project-sort-order');
+    if (sortEl) sortEl.value = '100';
+    const featEl = document.getElementById('project-featured');
+    if (featEl) featEl.checked = false;
 
     if (!silent) {
         const messageDiv = document.getElementById('admin-message');

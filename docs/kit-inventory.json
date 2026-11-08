@@ -1,0 +1,3478 @@
+{
+  "generatedAt": "2026-11-08T06:39:37.422Z",
+  "source": "public/models/kit",
+  "count": 78,
+  "files": [
+    {
+      "file": "corridor-corner.glb",
+      "path": "GLB format/corridor-corner.glb",
+      "bytes": 72300,
+      "sha256": "440f0658e19452bb6797d434b738c23f0b1dd1373fa2ff3de624a5e7fa67d7fb",
+      "meshCount": 1,
+      "triangles": 762,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        4.2333,
+        2
+      ],
+      "size": [
+        4,
+        4.2333,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-end.glb",
+      "path": "GLB format/corridor-end.glb",
+      "bytes": 101956,
+      "sha256": "dd6314528496566e571526c86a255d175e6725d7dc23ca4bbe6bb20ebf29484b",
+      "meshCount": 1,
+      "triangles": 1060,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        4.05,
+        2
+      ],
+      "size": [
+        4,
+        4.05,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-intersection.glb",
+      "path": "GLB format/corridor-intersection.glb",
+      "bytes": 35012,
+      "sha256": "7981c1995ff7e70b4d3c85892a044ff6cbb4d2ab8d95c18fa1e8bbb8d838a3c5",
+      "meshCount": 1,
+      "triangles": 340,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        4.05,
+        2
+      ],
+      "size": [
+        4,
+        4.05,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-junction.glb",
+      "path": "GLB format/corridor-junction.glb",
+      "bytes": 51884,
+      "sha256": "d27c4026981731a2689ab4f69e146598b094a2e5704aa5cd1293a3d58fc6edde",
+      "meshCount": 1,
+      "triangles": 524,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2.0058,
+        4.05,
+        2
+      ],
+      "size": [
+        4.0058,
+        4.05,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.4993,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-transition.glb",
+      "path": "GLB format/corridor-transition.glb",
+      "bytes": 186752,
+      "sha256": "a5cae65ebf0702c071e3ae3e4894e31ea3748cf1babab8ba952127e9b43cf175",
+      "meshCount": 1,
+      "triangles": 1948,
+      "boundsMin": [
+        -6,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        2,
+        4.05,
+        4
+      ],
+      "size": [
+        8,
+        4.05,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        6,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.75,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "off",
+        "y": "min",
+        "z": "mid",
+        "kind": "off-center"
+      }
+    },
+    {
+      "file": "corridor-wide-corner.glb",
+      "path": "GLB format/corridor-wide-corner.glb",
+      "bytes": 140076,
+      "sha256": "9b2cc242440c50476ad67cb4830c3ac0373109d24cb395dc0dcc1fdae611e9a7",
+      "meshCount": 1,
+      "triangles": 1478,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.2333,
+        4
+      ],
+      "size": [
+        8,
+        4.2333,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-wide-end.glb",
+      "path": "GLB format/corridor-wide-end.glb",
+      "bytes": 252924,
+      "sha256": "a3a036f73ed3ce507ea33c664d281d2534e644608dd19217c93c2b7b57dfc1cd",
+      "meshCount": 1,
+      "triangles": 2650,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.2333,
+        4
+      ],
+      "size": [
+        8,
+        4.2333,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-wide-intersection.glb",
+      "path": "GLB format/corridor-wide-intersection.glb",
+      "bytes": 36224,
+      "sha256": "864c3bafb1e23b9ae544452dd7b6843a831c7e5a3c28a005539ad3d3a637a704",
+      "meshCount": 1,
+      "triangles": 352,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.05,
+        4
+      ],
+      "size": [
+        8,
+        4.05,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-wide-junction.glb",
+      "path": "GLB format/corridor-wide-junction.glb",
+      "bytes": 103024,
+      "sha256": "e098dc459514b35d81a5de0b723d3bf0ba6d0a44edd7f5daddaa4b98ea6dcdbc",
+      "meshCount": 1,
+      "triangles": 1062,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.2333,
+        4
+      ],
+      "size": [
+        8,
+        4.2333,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-wide.glb",
+      "path": "GLB format/corridor-wide.glb",
+      "bytes": 169652,
+      "sha256": "12b15f9dd5a20c3e00d915a59fb9f295b01d39c5490d7954e74f3a2df327027d",
+      "meshCount": 1,
+      "triangles": 1772,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.2333,
+        4
+      ],
+      "size": [
+        8,
+        4.2333,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor.glb",
+      "path": "GLB format/corridor.glb",
+      "bytes": 68592,
+      "sha256": "3fe1301f525194a86dff9a325e190b4026061e9e443d06e7105f9bfe449d5fbe",
+      "meshCount": 1,
+      "triangles": 708,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        4.05,
+        2
+      ],
+      "size": [
+        4,
+        4.05,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "gate-door-window.glb",
+      "path": "GLB format/gate-door-window.glb",
+      "bytes": 95080,
+      "sha256": "9fca8b1307efae4c4305c646ab61c1532c06ad389e011de604d58a49912642db",
+      "meshCount": 2,
+      "triangles": 1048,
+      "boundsMin": [
+        -2.2,
+        0,
+        -0.7
+      ],
+      "boundsMax": [
+        2.2,
+        4.4,
+        0.7
+      ],
+      "size": [
+        4.4,
+        4.4,
+        1.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.2,
+        0,
+        0.7
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "gate-door.glb",
+      "path": "GLB format/gate-door.glb",
+      "bytes": 90640,
+      "sha256": "902ac6617d56143799aa2ca73d1113838cb09a9ebc7cbd7c7eeb785504099fd8",
+      "meshCount": 2,
+      "triangles": 984,
+      "boundsMin": [
+        -2.2,
+        0,
+        -0.7
+      ],
+      "boundsMax": [
+        2.2,
+        4.4,
+        0.7
+      ],
+      "size": [
+        4.4,
+        4.4,
+        1.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.2,
+        0,
+        0.7
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "gate-metal-bars.glb",
+      "path": "GLB format/gate-metal-bars.glb",
+      "bytes": 68172,
+      "sha256": "e3a2228906e1601c6d4fbb53d615f03541094177a624168e77b1ab0220e081f4",
+      "meshCount": 2,
+      "triangles": 720,
+      "boundsMin": [
+        -2.2,
+        0,
+        -0.7
+      ],
+      "boundsMax": [
+        2.2,
+        4.4,
+        0.7
+      ],
+      "size": [
+        4.4,
+        4.4,
+        1.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.2,
+        0,
+        0.7
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "gate.glb",
+      "path": "GLB format/gate.glb",
+      "bytes": 53804,
+      "sha256": "491c9e9980751cf4fee75e3cfc4390075402c0070962ff1d33fe98138ea289c9",
+      "meshCount": 1,
+      "triangles": 592,
+      "boundsMin": [
+        -2.2,
+        0,
+        -0.7
+      ],
+      "boundsMax": [
+        2.2,
+        4.4,
+        0.7
+      ],
+      "size": [
+        4.4,
+        4.4,
+        1.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.2,
+        0,
+        0.7
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-corner.glb",
+      "path": "GLB format/room-corner.glb",
+      "bytes": 379364,
+      "sha256": "2d9fcf2db59058bc4e1bd5f76a0163eb3486862cf21370fced62da50a0443a88",
+      "meshCount": 1,
+      "triangles": 4046,
+      "boundsMin": [
+        -6,
+        0,
+        -6
+      ],
+      "boundsMax": [
+        6,
+        4.2333,
+        6
+      ],
+      "size": [
+        12,
+        4.2333,
+        12
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        6,
+        0,
+        6
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-large-variation.glb",
+      "path": "GLB format/room-large-variation.glb",
+      "bytes": 775552,
+      "sha256": "9933e7d7446349fb45716494ccb29a903174938c519584b5a35e78877fcbd484",
+      "meshCount": 1,
+      "triangles": 8140,
+      "boundsMin": [
+        -10,
+        0,
+        -10
+      ],
+      "boundsMax": [
+        10,
+        4.2333,
+        10
+      ],
+      "size": [
+        20,
+        4.2333,
+        20
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        10,
+        0,
+        10
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-large.glb",
+      "path": "GLB format/room-large.glb",
+      "bytes": 821156,
+      "sha256": "f86dd0b8793fb88d76aca9157682276e180d0882dd5a2814ff1500639e839887",
+      "meshCount": 1,
+      "triangles": 8612,
+      "boundsMin": [
+        -10,
+        0,
+        -10
+      ],
+      "boundsMax": [
+        10,
+        4.2333,
+        10
+      ],
+      "size": [
+        20,
+        4.2333,
+        20
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        10,
+        0,
+        10
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-small-variation.glb",
+      "path": "GLB format/room-small-variation.glb",
+      "bytes": 371832,
+      "sha256": "98a00335643fb7b126d8760755c6b4d147126fa8fb01fac4a2718d9135d3d9c3",
+      "meshCount": 1,
+      "triangles": 3888,
+      "boundsMin": [
+        -6,
+        0,
+        -6
+      ],
+      "boundsMax": [
+        6,
+        4.2333,
+        6
+      ],
+      "size": [
+        12,
+        4.2333,
+        12
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        6,
+        0,
+        6
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-small.glb",
+      "path": "GLB format/room-small.glb",
+      "bytes": 379972,
+      "sha256": "1584e75d87bb1f888c7f21f36a64a46eef4fa2f4910a1a854d02e7602a820151",
+      "meshCount": 1,
+      "triangles": 4004,
+      "boundsMin": [
+        -6,
+        0,
+        -6
+      ],
+      "boundsMax": [
+        6,
+        4.2333,
+        6
+      ],
+      "size": [
+        12,
+        4.2333,
+        12
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        6,
+        0,
+        6
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-wide-variation.glb",
+      "path": "GLB format/room-wide-variation.glb",
+      "bytes": 712132,
+      "sha256": "add887d67144c90b0c2b2079f518cd0528d14ede1b596c634d73c28048151d34",
+      "meshCount": 1,
+      "triangles": 7520,
+      "boundsMin": [
+        -10,
+        0,
+        -6
+      ],
+      "boundsMax": [
+        10,
+        4.2333,
+        6
+      ],
+      "size": [
+        20,
+        4.2333,
+        12
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        10,
+        0,
+        6
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-wide.glb",
+      "path": "GLB format/room-wide.glb",
+      "bytes": 618044,
+      "sha256": "c498368ee6e5279a328dee439415175cff91c343460b5bd51fe62227f4bc22d5",
+      "meshCount": 1,
+      "triangles": 6500,
+      "boundsMin": [
+        -10,
+        0,
+        -6
+      ],
+      "boundsMax": [
+        10,
+        4.2333,
+        6
+      ],
+      "size": [
+        20,
+        4.2333,
+        12
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        10,
+        0,
+        6
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "stairs-wide.glb",
+      "path": "GLB format/stairs-wide.glb",
+      "bytes": 246656,
+      "sha256": "dd8fefaed41c66e1e638399ccde11e75b3af867b0df0faa03ee6c557b5d06d38",
+      "meshCount": 1,
+      "triangles": 2790,
+      "boundsMin": [
+        -4.2,
+        0,
+        -6.2
+      ],
+      "boundsMax": [
+        4.2,
+        8.55,
+        2.2
+      ],
+      "size": [
+        8.4,
+        8.55,
+        8.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4.2,
+        0,
+        6.2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.7381
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "off",
+        "kind": "off-center"
+      }
+    },
+    {
+      "file": "stairs.glb",
+      "path": "GLB format/stairs.glb",
+      "bytes": 237304,
+      "sha256": "731f16fd1ff98de56a9aa4cc8c9d5603a67e802018b8fb30366cc966a2c6d93f",
+      "meshCount": 1,
+      "triangles": 2674,
+      "boundsMin": [
+        -2.2,
+        0,
+        -6.2
+      ],
+      "boundsMax": [
+        2.2,
+        8.55,
+        2.2
+      ],
+      "size": [
+        4.4,
+        8.55,
+        8.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.2,
+        0,
+        6.2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.7381
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "off",
+        "kind": "off-center"
+      }
+    },
+    {
+      "file": "template-corner.glb",
+      "path": "GLB format/template-corner.glb",
+      "bytes": 64080,
+      "sha256": "b127fb7fd8b098e80bbb859e5ab3e3e8a0b2c0c059f5facef4a7b27bdbdad1a4",
+      "meshCount": 1,
+      "triangles": 678,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        4.2333,
+        2
+      ],
+      "size": [
+        4,
+        4.2333,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-detail.glb",
+      "path": "GLB format/template-detail.glb",
+      "bytes": 18216,
+      "sha256": "1e996e74b9e841418009c9292a8247dc6413588bbdcdf298b7f2666be73b6a68",
+      "meshCount": 1,
+      "triangles": 176,
+      "boundsMin": [
+        -0.8957,
+        0,
+        -0.8957
+      ],
+      "boundsMax": [
+        0.8957,
+        4.2333,
+        0.8957
+      ],
+      "size": [
+        1.7913,
+        4.2333,
+        1.7913
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        0.8957,
+        0,
+        0.8957
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-big.glb",
+      "path": "GLB format/template-floor-big.glb",
+      "bytes": 49172,
+      "sha256": "29b20aab39eb3153bd2bf35dda1f0c6bb568b0ec4a9d3c02b25a313201d447e0",
+      "meshCount": 1,
+      "triangles": 480,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.2333,
+        4
+      ],
+      "size": [
+        8,
+        4.2333,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-detail-a.glb",
+      "path": "GLB format/template-floor-detail-a.glb",
+      "bytes": 22656,
+      "sha256": "22956d0f156ab37704a97ecf7dd09914701a14174c03f84ea4dc8c0ac0538913",
+      "meshCount": 1,
+      "triangles": 204,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        0.2,
+        2
+      ],
+      "size": [
+        4,
+        0.2,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-detail.glb",
+      "path": "GLB format/template-floor-detail.glb",
+      "bytes": 22652,
+      "sha256": "b1c7882d1c5cdca978660163842efe7a9859619dad6123769399537bc3832ea1",
+      "meshCount": 1,
+      "triangles": 204,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        0.2,
+        2
+      ],
+      "size": [
+        4,
+        0.2,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-layer-hole.glb",
+      "path": "GLB format/template-floor-layer-hole.glb",
+      "bytes": 41092,
+      "sha256": "5333206d219c5650084eb1b8c9bcb2c2cc64628b7ebf1eba46291be7310b76be",
+      "meshCount": 1,
+      "triangles": 384,
+      "boundsMin": [
+        -2.0216,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2.0217,
+        3.0892,
+        2
+      ],
+      "size": [
+        4.0433,
+        3.0892,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.0216,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-layer-raised.glb",
+      "path": "GLB format/template-floor-layer-raised.glb",
+      "bytes": 33704,
+      "sha256": "67ec6be43981145710775c4150d781ff6a9e63cfd892a3a14dd92678405d0d22",
+      "meshCount": 1,
+      "triangles": 312,
+      "boundsMin": [
+        -2.0119,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2.0119,
+        3,
+        2
+      ],
+      "size": [
+        4.0237,
+        3,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.0119,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-layer.glb",
+      "path": "GLB format/template-floor-layer.glb",
+      "bytes": 18996,
+      "sha256": "1c076e05019af8eb8b206b417d70a97d30561fe4dda8c018ef4340804556a75b",
+      "meshCount": 1,
+      "triangles": 168,
+      "boundsMin": [
+        -2.0119,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2.0119,
+        0.5,
+        2
+      ],
+      "size": [
+        4.0237,
+        0.5,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.0119,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor.glb",
+      "path": "GLB format/template-floor.glb",
+      "bytes": 2024,
+      "sha256": "164adfe21dfed9cd83297bb4ebe4c0eca945aa2bef4efa077418750c5bff6d73",
+      "meshCount": 1,
+      "triangles": 4,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        0,
+        2
+      ],
+      "size": [
+        4,
+        0,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-wall-corner.glb",
+      "path": "GLB format/template-wall-corner.glb",
+      "bytes": 9688,
+      "sha256": "fbccb15028552ba779cd765b5d41ea328f3b4a5e2c61be11fda5de87b1b81f9d",
+      "meshCount": 1,
+      "triangles": 84,
+      "boundsMin": [
+        -1.002,
+        0,
+        -1.002
+      ],
+      "boundsMax": [
+        0,
+        4.05,
+        0
+      ],
+      "size": [
+        1.002,
+        4.05,
+        1.002
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        1.002,
+        0,
+        1.002
+      ],
+      "pivotNormalized": [
+        1,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "max",
+        "y": "min",
+        "z": "max",
+        "kind": "corner"
+      }
+    },
+    {
+      "file": "template-wall-detail-a.glb",
+      "path": "GLB format/template-wall-detail-a.glb",
+      "bytes": 50480,
+      "sha256": "6e8424185e32e81f44fb2d999d6adce7c3a5cad7c457c6d58cea2dfa580ed6ee",
+      "meshCount": 1,
+      "triangles": 518,
+      "boundsMin": [
+        -2,
+        0,
+        -1.9936
+      ],
+      "boundsMax": [
+        2,
+        4.2333,
+        0
+      ],
+      "size": [
+        4,
+        4.2333,
+        1.9936
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        1.9936
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "max",
+        "kind": "edge"
+      }
+    },
+    {
+      "file": "template-wall-half.glb",
+      "path": "GLB format/template-wall-half.glb",
+      "bytes": 18964,
+      "sha256": "66d717998df6fd3f3c305286c4d639fbb341c11b6e222498ea1db61815e3e7ab",
+      "meshCount": 1,
+      "triangles": 180,
+      "boundsMin": [
+        -1,
+        0,
+        -1.8074
+      ],
+      "boundsMax": [
+        1,
+        4.05,
+        0
+      ],
+      "size": [
+        2,
+        4.05,
+        1.8074
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        1,
+        0,
+        1.8074
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "max",
+        "kind": "edge"
+      }
+    },
+    {
+      "file": "template-wall-stairs.glb",
+      "path": "GLB format/template-wall-stairs.glb",
+      "bytes": 15376,
+      "sha256": "c62afcc130d896836e454cc42320372b8d047cc568c32f5401bcc585b5ff1032",
+      "meshCount": 1,
+      "triangles": 170,
+      "boundsMin": [
+        -2,
+        0,
+        -0.6261
+      ],
+      "boundsMax": [
+        2,
+        4.5,
+        0
+      ],
+      "size": [
+        4,
+        4.5,
+        0.6261
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        0.6261
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "max",
+        "kind": "edge"
+      }
+    },
+    {
+      "file": "template-wall-top.glb",
+      "path": "GLB format/template-wall-top.glb",
+      "bytes": 27600,
+      "sha256": "ca86c2b4fac6a29bd59cd4ec72895c9fec4a9d296ef9da0ac594ece91fe6a3cb",
+      "meshCount": 1,
+      "triangles": 330,
+      "boundsMin": [
+        -2,
+        0,
+        -0.6011
+      ],
+      "boundsMax": [
+        2,
+        4.5,
+        0
+      ],
+      "size": [
+        4,
+        4.5,
+        0.6011
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        0.6011
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "max",
+        "kind": "edge"
+      }
+    },
+    {
+      "file": "template-wall.glb",
+      "path": "GLB format/template-wall.glb",
+      "bytes": 34960,
+      "sha256": "cf8628313082b369f986c066a95d503bed5a869c41024c1fac18eb5d1a8a6626",
+      "meshCount": 1,
+      "triangles": 352,
+      "boundsMin": [
+        -2,
+        0,
+        -1.9936
+      ],
+      "boundsMax": [
+        2,
+        4.05,
+        0
+      ],
+      "size": [
+        4,
+        4.05,
+        1.9936
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        1.9936
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "max",
+        "kind": "edge"
+      }
+    },
+    {
+      "file": "corridor-corner.glb",
+      "path": "corridor-corner.glb",
+      "bytes": 72300,
+      "sha256": "440f0658e19452bb6797d434b738c23f0b1dd1373fa2ff3de624a5e7fa67d7fb",
+      "duplicateOf": "GLB format/corridor-corner.glb",
+      "meshCount": 1,
+      "triangles": 762,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        4.2333,
+        2
+      ],
+      "size": [
+        4,
+        4.2333,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-end.glb",
+      "path": "corridor-end.glb",
+      "bytes": 101956,
+      "sha256": "dd6314528496566e571526c86a255d175e6725d7dc23ca4bbe6bb20ebf29484b",
+      "duplicateOf": "GLB format/corridor-end.glb",
+      "meshCount": 1,
+      "triangles": 1060,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        4.05,
+        2
+      ],
+      "size": [
+        4,
+        4.05,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-intersection.glb",
+      "path": "corridor-intersection.glb",
+      "bytes": 35012,
+      "sha256": "7981c1995ff7e70b4d3c85892a044ff6cbb4d2ab8d95c18fa1e8bbb8d838a3c5",
+      "duplicateOf": "GLB format/corridor-intersection.glb",
+      "meshCount": 1,
+      "triangles": 340,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        4.05,
+        2
+      ],
+      "size": [
+        4,
+        4.05,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-junction.glb",
+      "path": "corridor-junction.glb",
+      "bytes": 51884,
+      "sha256": "d27c4026981731a2689ab4f69e146598b094a2e5704aa5cd1293a3d58fc6edde",
+      "duplicateOf": "GLB format/corridor-junction.glb",
+      "meshCount": 1,
+      "triangles": 524,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2.0058,
+        4.05,
+        2
+      ],
+      "size": [
+        4.0058,
+        4.05,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.4993,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-transition.glb",
+      "path": "corridor-transition.glb",
+      "bytes": 186752,
+      "sha256": "a5cae65ebf0702c071e3ae3e4894e31ea3748cf1babab8ba952127e9b43cf175",
+      "duplicateOf": "GLB format/corridor-transition.glb",
+      "meshCount": 1,
+      "triangles": 1948,
+      "boundsMin": [
+        -6,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        2,
+        4.05,
+        4
+      ],
+      "size": [
+        8,
+        4.05,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        6,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.75,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "off",
+        "y": "min",
+        "z": "mid",
+        "kind": "off-center"
+      }
+    },
+    {
+      "file": "corridor-wide-corner.glb",
+      "path": "corridor-wide-corner.glb",
+      "bytes": 140076,
+      "sha256": "9b2cc242440c50476ad67cb4830c3ac0373109d24cb395dc0dcc1fdae611e9a7",
+      "duplicateOf": "GLB format/corridor-wide-corner.glb",
+      "meshCount": 1,
+      "triangles": 1478,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.2333,
+        4
+      ],
+      "size": [
+        8,
+        4.2333,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-wide-end.glb",
+      "path": "corridor-wide-end.glb",
+      "bytes": 252924,
+      "sha256": "a3a036f73ed3ce507ea33c664d281d2534e644608dd19217c93c2b7b57dfc1cd",
+      "duplicateOf": "GLB format/corridor-wide-end.glb",
+      "meshCount": 1,
+      "triangles": 2650,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.2333,
+        4
+      ],
+      "size": [
+        8,
+        4.2333,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-wide-intersection.glb",
+      "path": "corridor-wide-intersection.glb",
+      "bytes": 36224,
+      "sha256": "864c3bafb1e23b9ae544452dd7b6843a831c7e5a3c28a005539ad3d3a637a704",
+      "duplicateOf": "GLB format/corridor-wide-intersection.glb",
+      "meshCount": 1,
+      "triangles": 352,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.05,
+        4
+      ],
+      "size": [
+        8,
+        4.05,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-wide-junction.glb",
+      "path": "corridor-wide-junction.glb",
+      "bytes": 103024,
+      "sha256": "e098dc459514b35d81a5de0b723d3bf0ba6d0a44edd7f5daddaa4b98ea6dcdbc",
+      "duplicateOf": "GLB format/corridor-wide-junction.glb",
+      "meshCount": 1,
+      "triangles": 1062,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.2333,
+        4
+      ],
+      "size": [
+        8,
+        4.2333,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor-wide.glb",
+      "path": "corridor-wide.glb",
+      "bytes": 169652,
+      "sha256": "12b15f9dd5a20c3e00d915a59fb9f295b01d39c5490d7954e74f3a2df327027d",
+      "duplicateOf": "GLB format/corridor-wide.glb",
+      "meshCount": 1,
+      "triangles": 1772,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.2333,
+        4
+      ],
+      "size": [
+        8,
+        4.2333,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "corridor.glb",
+      "path": "corridor.glb",
+      "bytes": 68592,
+      "sha256": "3fe1301f525194a86dff9a325e190b4026061e9e443d06e7105f9bfe449d5fbe",
+      "duplicateOf": "GLB format/corridor.glb",
+      "meshCount": 1,
+      "triangles": 708,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        4.05,
+        2
+      ],
+      "size": [
+        4,
+        4.05,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "gate-door-window.glb",
+      "path": "gate-door-window.glb",
+      "bytes": 95080,
+      "sha256": "9fca8b1307efae4c4305c646ab61c1532c06ad389e011de604d58a49912642db",
+      "duplicateOf": "GLB format/gate-door-window.glb",
+      "meshCount": 2,
+      "triangles": 1048,
+      "boundsMin": [
+        -2.2,
+        0,
+        -0.7
+      ],
+      "boundsMax": [
+        2.2,
+        4.4,
+        0.7
+      ],
+      "size": [
+        4.4,
+        4.4,
+        1.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.2,
+        0,
+        0.7
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "gate-door.glb",
+      "path": "gate-door.glb",
+      "bytes": 90640,
+      "sha256": "902ac6617d56143799aa2ca73d1113838cb09a9ebc7cbd7c7eeb785504099fd8",
+      "duplicateOf": "GLB format/gate-door.glb",
+      "meshCount": 2,
+      "triangles": 984,
+      "boundsMin": [
+        -2.2,
+        0,
+        -0.7
+      ],
+      "boundsMax": [
+        2.2,
+        4.4,
+        0.7
+      ],
+      "size": [
+        4.4,
+        4.4,
+        1.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.2,
+        0,
+        0.7
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "gate-metal-bars.glb",
+      "path": "gate-metal-bars.glb",
+      "bytes": 68172,
+      "sha256": "e3a2228906e1601c6d4fbb53d615f03541094177a624168e77b1ab0220e081f4",
+      "duplicateOf": "GLB format/gate-metal-bars.glb",
+      "meshCount": 2,
+      "triangles": 720,
+      "boundsMin": [
+        -2.2,
+        0,
+        -0.7
+      ],
+      "boundsMax": [
+        2.2,
+        4.4,
+        0.7
+      ],
+      "size": [
+        4.4,
+        4.4,
+        1.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.2,
+        0,
+        0.7
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "gate.glb",
+      "path": "gate.glb",
+      "bytes": 53804,
+      "sha256": "491c9e9980751cf4fee75e3cfc4390075402c0070962ff1d33fe98138ea289c9",
+      "duplicateOf": "GLB format/gate.glb",
+      "meshCount": 1,
+      "triangles": 592,
+      "boundsMin": [
+        -2.2,
+        0,
+        -0.7
+      ],
+      "boundsMax": [
+        2.2,
+        4.4,
+        0.7
+      ],
+      "size": [
+        4.4,
+        4.4,
+        1.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.2,
+        0,
+        0.7
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-corner.glb",
+      "path": "room-corner.glb",
+      "bytes": 379364,
+      "sha256": "2d9fcf2db59058bc4e1bd5f76a0163eb3486862cf21370fced62da50a0443a88",
+      "duplicateOf": "GLB format/room-corner.glb",
+      "meshCount": 1,
+      "triangles": 4046,
+      "boundsMin": [
+        -6,
+        0,
+        -6
+      ],
+      "boundsMax": [
+        6,
+        4.2333,
+        6
+      ],
+      "size": [
+        12,
+        4.2333,
+        12
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        6,
+        0,
+        6
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-large-variation.glb",
+      "path": "room-large-variation.glb",
+      "bytes": 775552,
+      "sha256": "9933e7d7446349fb45716494ccb29a903174938c519584b5a35e78877fcbd484",
+      "duplicateOf": "GLB format/room-large-variation.glb",
+      "meshCount": 1,
+      "triangles": 8140,
+      "boundsMin": [
+        -10,
+        0,
+        -10
+      ],
+      "boundsMax": [
+        10,
+        4.2333,
+        10
+      ],
+      "size": [
+        20,
+        4.2333,
+        20
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        10,
+        0,
+        10
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-large.glb",
+      "path": "room-large.glb",
+      "bytes": 821156,
+      "sha256": "f86dd0b8793fb88d76aca9157682276e180d0882dd5a2814ff1500639e839887",
+      "duplicateOf": "GLB format/room-large.glb",
+      "meshCount": 1,
+      "triangles": 8612,
+      "boundsMin": [
+        -10,
+        0,
+        -10
+      ],
+      "boundsMax": [
+        10,
+        4.2333,
+        10
+      ],
+      "size": [
+        20,
+        4.2333,
+        20
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        10,
+        0,
+        10
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-small-variation.glb",
+      "path": "room-small-variation.glb",
+      "bytes": 371832,
+      "sha256": "98a00335643fb7b126d8760755c6b4d147126fa8fb01fac4a2718d9135d3d9c3",
+      "duplicateOf": "GLB format/room-small-variation.glb",
+      "meshCount": 1,
+      "triangles": 3888,
+      "boundsMin": [
+        -6,
+        0,
+        -6
+      ],
+      "boundsMax": [
+        6,
+        4.2333,
+        6
+      ],
+      "size": [
+        12,
+        4.2333,
+        12
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        6,
+        0,
+        6
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-small.glb",
+      "path": "room-small.glb",
+      "bytes": 379972,
+      "sha256": "1584e75d87bb1f888c7f21f36a64a46eef4fa2f4910a1a854d02e7602a820151",
+      "duplicateOf": "GLB format/room-small.glb",
+      "meshCount": 1,
+      "triangles": 4004,
+      "boundsMin": [
+        -6,
+        0,
+        -6
+      ],
+      "boundsMax": [
+        6,
+        4.2333,
+        6
+      ],
+      "size": [
+        12,
+        4.2333,
+        12
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        6,
+        0,
+        6
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-wide-variation.glb",
+      "path": "room-wide-variation.glb",
+      "bytes": 712132,
+      "sha256": "add887d67144c90b0c2b2079f518cd0528d14ede1b596c634d73c28048151d34",
+      "duplicateOf": "GLB format/room-wide-variation.glb",
+      "meshCount": 1,
+      "triangles": 7520,
+      "boundsMin": [
+        -10,
+        0,
+        -6
+      ],
+      "boundsMax": [
+        10,
+        4.2333,
+        6
+      ],
+      "size": [
+        20,
+        4.2333,
+        12
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        10,
+        0,
+        6
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "room-wide.glb",
+      "path": "room-wide.glb",
+      "bytes": 618044,
+      "sha256": "c498368ee6e5279a328dee439415175cff91c343460b5bd51fe62227f4bc22d5",
+      "duplicateOf": "GLB format/room-wide.glb",
+      "meshCount": 1,
+      "triangles": 6500,
+      "boundsMin": [
+        -10,
+        0,
+        -6
+      ],
+      "boundsMax": [
+        10,
+        4.2333,
+        6
+      ],
+      "size": [
+        20,
+        4.2333,
+        12
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        10,
+        0,
+        6
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "stairs-wide.glb",
+      "path": "stairs-wide.glb",
+      "bytes": 246656,
+      "sha256": "dd8fefaed41c66e1e638399ccde11e75b3af867b0df0faa03ee6c557b5d06d38",
+      "duplicateOf": "GLB format/stairs-wide.glb",
+      "meshCount": 1,
+      "triangles": 2790,
+      "boundsMin": [
+        -4.2,
+        0,
+        -6.2
+      ],
+      "boundsMax": [
+        4.2,
+        8.55,
+        2.2
+      ],
+      "size": [
+        8.4,
+        8.55,
+        8.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4.2,
+        0,
+        6.2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.7381
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "off",
+        "kind": "off-center"
+      }
+    },
+    {
+      "file": "stairs.glb",
+      "path": "stairs.glb",
+      "bytes": 237304,
+      "sha256": "731f16fd1ff98de56a9aa4cc8c9d5603a67e802018b8fb30366cc966a2c6d93f",
+      "duplicateOf": "GLB format/stairs.glb",
+      "meshCount": 1,
+      "triangles": 2674,
+      "boundsMin": [
+        -2.2,
+        0,
+        -6.2
+      ],
+      "boundsMax": [
+        2.2,
+        8.55,
+        2.2
+      ],
+      "size": [
+        4.4,
+        8.55,
+        8.4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.2,
+        0,
+        6.2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.7381
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "off",
+        "kind": "off-center"
+      }
+    },
+    {
+      "file": "template-corner.glb",
+      "path": "template-corner.glb",
+      "bytes": 64080,
+      "sha256": "b127fb7fd8b098e80bbb859e5ab3e3e8a0b2c0c059f5facef4a7b27bdbdad1a4",
+      "duplicateOf": "GLB format/template-corner.glb",
+      "meshCount": 1,
+      "triangles": 678,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        4.2333,
+        2
+      ],
+      "size": [
+        4,
+        4.2333,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-detail.glb",
+      "path": "template-detail.glb",
+      "bytes": 18216,
+      "sha256": "1e996e74b9e841418009c9292a8247dc6413588bbdcdf298b7f2666be73b6a68",
+      "duplicateOf": "GLB format/template-detail.glb",
+      "meshCount": 1,
+      "triangles": 176,
+      "boundsMin": [
+        -0.8957,
+        0,
+        -0.8957
+      ],
+      "boundsMax": [
+        0.8957,
+        4.2333,
+        0.8957
+      ],
+      "size": [
+        1.7913,
+        4.2333,
+        1.7913
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        0.8957,
+        0,
+        0.8957
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-big.glb",
+      "path": "template-floor-big.glb",
+      "bytes": 49172,
+      "sha256": "29b20aab39eb3153bd2bf35dda1f0c6bb568b0ec4a9d3c02b25a313201d447e0",
+      "duplicateOf": "GLB format/template-floor-big.glb",
+      "meshCount": 1,
+      "triangles": 480,
+      "boundsMin": [
+        -4,
+        0,
+        -4
+      ],
+      "boundsMax": [
+        4,
+        4.2333,
+        4
+      ],
+      "size": [
+        8,
+        4.2333,
+        8
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        4,
+        0,
+        4
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-detail-a.glb",
+      "path": "template-floor-detail-a.glb",
+      "bytes": 22656,
+      "sha256": "22956d0f156ab37704a97ecf7dd09914701a14174c03f84ea4dc8c0ac0538913",
+      "duplicateOf": "GLB format/template-floor-detail-a.glb",
+      "meshCount": 1,
+      "triangles": 204,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        0.2,
+        2
+      ],
+      "size": [
+        4,
+        0.2,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-detail.glb",
+      "path": "template-floor-detail.glb",
+      "bytes": 22652,
+      "sha256": "b1c7882d1c5cdca978660163842efe7a9859619dad6123769399537bc3832ea1",
+      "duplicateOf": "GLB format/template-floor-detail.glb",
+      "meshCount": 1,
+      "triangles": 204,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        0.2,
+        2
+      ],
+      "size": [
+        4,
+        0.2,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-layer-hole.glb",
+      "path": "template-floor-layer-hole.glb",
+      "bytes": 41092,
+      "sha256": "5333206d219c5650084eb1b8c9bcb2c2cc64628b7ebf1eba46291be7310b76be",
+      "duplicateOf": "GLB format/template-floor-layer-hole.glb",
+      "meshCount": 1,
+      "triangles": 384,
+      "boundsMin": [
+        -2.0216,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2.0217,
+        3.0892,
+        2
+      ],
+      "size": [
+        4.0433,
+        3.0892,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.0216,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-layer-raised.glb",
+      "path": "template-floor-layer-raised.glb",
+      "bytes": 33704,
+      "sha256": "67ec6be43981145710775c4150d781ff6a9e63cfd892a3a14dd92678405d0d22",
+      "duplicateOf": "GLB format/template-floor-layer-raised.glb",
+      "meshCount": 1,
+      "triangles": 312,
+      "boundsMin": [
+        -2.0119,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2.0119,
+        3,
+        2
+      ],
+      "size": [
+        4.0237,
+        3,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.0119,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor-layer.glb",
+      "path": "template-floor-layer.glb",
+      "bytes": 18996,
+      "sha256": "1c076e05019af8eb8b206b417d70a97d30561fe4dda8c018ef4340804556a75b",
+      "duplicateOf": "GLB format/template-floor-layer.glb",
+      "meshCount": 1,
+      "triangles": 168,
+      "boundsMin": [
+        -2.0119,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2.0119,
+        0.5,
+        2
+      ],
+      "size": [
+        4.0237,
+        0.5,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2.0119,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-floor.glb",
+      "path": "template-floor.glb",
+      "bytes": 2024,
+      "sha256": "164adfe21dfed9cd83297bb4ebe4c0eca945aa2bef4efa077418750c5bff6d73",
+      "duplicateOf": "GLB format/template-floor.glb",
+      "meshCount": 1,
+      "triangles": 4,
+      "boundsMin": [
+        -2,
+        0,
+        -2
+      ],
+      "boundsMax": [
+        2,
+        0,
+        2
+      ],
+      "size": [
+        4,
+        0,
+        4
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        2
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        0.5
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "mid",
+        "kind": "center"
+      }
+    },
+    {
+      "file": "template-wall-corner.glb",
+      "path": "template-wall-corner.glb",
+      "bytes": 9688,
+      "sha256": "fbccb15028552ba779cd765b5d41ea328f3b4a5e2c61be11fda5de87b1b81f9d",
+      "duplicateOf": "GLB format/template-wall-corner.glb",
+      "meshCount": 1,
+      "triangles": 84,
+      "boundsMin": [
+        -1.002,
+        0,
+        -1.002
+      ],
+      "boundsMax": [
+        0,
+        4.05,
+        0
+      ],
+      "size": [
+        1.002,
+        4.05,
+        1.002
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        1.002,
+        0,
+        1.002
+      ],
+      "pivotNormalized": [
+        1,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "max",
+        "y": "min",
+        "z": "max",
+        "kind": "corner"
+      }
+    },
+    {
+      "file": "template-wall-detail-a.glb",
+      "path": "template-wall-detail-a.glb",
+      "bytes": 50480,
+      "sha256": "6e8424185e32e81f44fb2d999d6adce7c3a5cad7c457c6d58cea2dfa580ed6ee",
+      "duplicateOf": "GLB format/template-wall-detail-a.glb",
+      "meshCount": 1,
+      "triangles": 518,
+      "boundsMin": [
+        -2,
+        0,
+        -1.9936
+      ],
+      "boundsMax": [
+        2,
+        4.2333,
+        0
+      ],
+      "size": [
+        4,
+        4.2333,
+        1.9936
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        1.9936
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "max",
+        "kind": "edge"
+      }
+    },
+    {
+      "file": "template-wall-half.glb",
+      "path": "template-wall-half.glb",
+      "bytes": 18964,
+      "sha256": "66d717998df6fd3f3c305286c4d639fbb341c11b6e222498ea1db61815e3e7ab",
+      "duplicateOf": "GLB format/template-wall-half.glb",
+      "meshCount": 1,
+      "triangles": 180,
+      "boundsMin": [
+        -1,
+        0,
+        -1.8074
+      ],
+      "boundsMax": [
+        1,
+        4.05,
+        0
+      ],
+      "size": [
+        2,
+        4.05,
+        1.8074
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        1,
+        0,
+        1.8074
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "max",
+        "kind": "edge"
+      }
+    },
+    {
+      "file": "template-wall-stairs.glb",
+      "path": "template-wall-stairs.glb",
+      "bytes": 15376,
+      "sha256": "c62afcc130d896836e454cc42320372b8d047cc568c32f5401bcc585b5ff1032",
+      "duplicateOf": "GLB format/template-wall-stairs.glb",
+      "meshCount": 1,
+      "triangles": 170,
+      "boundsMin": [
+        -2,
+        0,
+        -0.6261
+      ],
+      "boundsMax": [
+        2,
+        4.5,
+        0
+      ],
+      "size": [
+        4,
+        4.5,
+        0.6261
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        0.6261
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "max",
+        "kind": "edge"
+      }
+    },
+    {
+      "file": "template-wall-top.glb",
+      "path": "template-wall-top.glb",
+      "bytes": 27600,
+      "sha256": "ca86c2b4fac6a29bd59cd4ec72895c9fec4a9d296ef9da0ac594ece91fe6a3cb",
+      "duplicateOf": "GLB format/template-wall-top.glb",
+      "meshCount": 1,
+      "triangles": 330,
+      "boundsMin": [
+        -2,
+        0,
+        -0.6011
+      ],
+      "boundsMax": [
+        2,
+        4.5,
+        0
+      ],
+      "size": [
+        4,
+        4.5,
+        0.6011
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        0.6011
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "max",
+        "kind": "edge"
+      }
+    },
+    {
+      "file": "template-wall.glb",
+      "path": "template-wall.glb",
+      "bytes": 34960,
+      "sha256": "cf8628313082b369f986c066a95d503bed5a869c41024c1fac18eb5d1a8a6626",
+      "duplicateOf": "GLB format/template-wall.glb",
+      "meshCount": 1,
+      "triangles": 352,
+      "boundsMin": [
+        -2,
+        0,
+        -1.9936
+      ],
+      "boundsMax": [
+        2,
+        4.05,
+        0
+      ],
+      "size": [
+        4,
+        4.05,
+        1.9936
+      ],
+      "pivotWorld": [
+        0,
+        0,
+        0
+      ],
+      "pivotOffsetFromBoxMin": [
+        2,
+        0,
+        1.9936
+      ],
+      "pivotNormalized": [
+        0.5,
+        0,
+        1
+      ],
+      "pivotAnchor": {
+        "x": "mid",
+        "y": "min",
+        "z": "max",
+        "kind": "edge"
+      }
+    }
+  ]
+}
