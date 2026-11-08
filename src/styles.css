@@ -164,7 +164,7 @@
   padding: 96px 24px 32px;
   overflow-y: auto;
   color: #fff;
-  text-shadow: 0 1px 12px rgba(10, 30, 60, 0.55);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
   transition: opacity 450ms ease-out, transform 450ms ease-out;
   /* Stage writes only opacity/transform per frame; these flip via the .live / .active classes. */
   opacity: 0;
@@ -201,12 +201,11 @@
   text-align: left;
   font-size: 0.95rem;
   line-height: 1.5;
-  color: #e8ecf4;
-  background: rgba(10, 12, 18, 0.78);
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+  background: rgba(18, 24, 38, 0.52);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 16px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
 
@@ -249,7 +248,7 @@
 
 .panel-project .project-panel p,
 .panel-project .project-panel li {
-  color: #e8ecf4;
+  color: #fff;
   margin: 0 0 0.6rem;
 }
 
@@ -333,8 +332,18 @@
   margin-inline: auto;
 }
 
-.hero-copy {
+.hero-copy,
+.about-copy {
+  width: min(760px, 100%);
   max-width: 760px;
+  margin: 0 auto;
+  padding: 22px 24px;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+  background: rgba(18, 24, 38, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
 
 .hero-kicker {
@@ -405,13 +414,12 @@ section.hero .btn-secondary:hover {
   max-width: 720px;
   margin: 0 auto;
   text-align: left;
-  color: #e8ecf4;
-  background: rgba(10, 12, 18, 0.78);
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+  background: rgba(18, 24, 38, 0.52);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 16px;
   padding: 28px 28px 18px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
@@ -552,3 +560,5 @@ section.hero .btn-secondary:hover {
     animation: none;
   }
 }
+
+

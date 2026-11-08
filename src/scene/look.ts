@@ -16,7 +16,7 @@ export const MAX_DRAW_CALLS = 120;
 export const SHADOW_MAPS = false;
 
 export const WORLD_SEED = 7;
-export const PATH_CLEARANCE = 3; // nothing sits closer than this to the camera path
+export const PATH_CLEARANCE = 1; // nothing sits closer than this to the camera path
 export const PATH_EXTEND = 60; // scatter continues this far past the curve end
 export const TREE_SCALE_VAR = 0.2; // +-20% for kit models
 export const TREE_COLOR_VAR = 0.1; // +-10% (procedural only)
@@ -34,72 +34,72 @@ export const COUNTS = {
   kitRock: 85,
   kitLog: 18,
   // Procedural fallback
-  pine: 90,
-  deciduous: 75,
-  birch: 55,
-  rocks: 100,
-  bushes: 110,
-  grass: 220,
-  ferns: 90,
-  flowers: 140,
-  mushrooms: 70,
+  pine: 140,
+  deciduous: 100,
+  birch: 70,
+  rocks: 70,
+  bushes: 180,
+  grass: 350,
+  ferns: 140,
+  flowers: 0,      // was 140: fewer floating orbs
+  mushrooms: 30,
   stumps: 28,
   logs: 22,
   boulderClusters: 10, // each cluster places 3–5 boulders
-  fireflies: 150,
-  mistPlanes: 10,
-  lightShafts: 4,
+  fireflies: 220,
+  mistPlanes: 8,
+  lightShafts: 0,
 };
 
 /** Spatial chunks are ~CHUNK_SIZE × CHUNK_SIZE on the ground plane. */
 export const CHUNK_SIZE = 30;
 export const CHUNK_LENGTH = 30; // kept for procedural Z-slicing fallback
-export const CHUNK_VISIBLE_DIST = 85; // match fog far so culled chunks sit outside the fog volume
+export const CHUNK_VISIBLE_DIST = 70;       // was 85 (keep equal to WORLD_FOG_FAR)
+export const WORLD_FOG_COLOR = 0x343262;    // was 0xbcd6ea (dusk violet)
+export const WORLD_FOG_NEAR = 6;            // was 10
+export const WORLD_FOG_FAR = 70;            // was 85 (thicker fog hides weak distant detail)
 
-export const WORLD_FOG_COLOR = 0xbcd6ea;
-export const WORLD_FOG_NEAR = 10;
-export const WORLD_FOG_FAR = 85; // short enough that the ground edge is fully fogged
 export const GROUND_MARGIN = 55; // ground extends this far past the outermost prop
 
-export const FIREFLY_SIZE = 0.07;
-export const FIREFLY_OPACITY = 0.85;
+export const FIREFLY_SIZE = 0.1;
+export const FIREFLY_OPACITY = 0.95;
 export const FIREFLY_DRIFT = 0.35;
-export const FIREFLY_PULSE = 0.45;
+export const FIREFLY_PULSE = 0.6;
 
-export const MIST_OPACITY_OUTDOOR = 0.14;
+export const MIST_OPACITY_OUTDOOR = 0.10;
 export const MIST_LIFT_OUTDOOR = 0.35;
 export const MIST_SCROLL_OUTDOOR = 0.004;
 export const MIST_SIZE_OUTDOOR: [number, number] = [18, 28];
-export const MIST_COLOR_OUTDOOR = 0xd8e6f0;
+export const MIST_COLOR_OUTDOOR = 0x6f7fb8;
 
 export const SHAFT_COLOR_OUTDOOR = 0xffe6b0;
 export const SHAFT_STRENGTH_OUTDOOR = 0.35;
 export const SHAFT_RADIUS_OUTDOOR = 1.6;
 
 export const CAMPFIRE_CLEARING = 11; // keep trees/rocks out of the Contact clearing
-export const CAMPFIRE_LIGHT_INTENSITY = 2.4;
-export const CAMPFIRE_LIGHT_DISTANCE = 18;
+export const CAMPFIRE_LIGHT_INTENSITY = 3.2;
+export const CAMPFIRE_LIGHT_DISTANCE = 26;
 export const CAMPFIRE_LIGHT_COLOR = 0xff9a4a;
 export const CAMPFIRE_FLAME_COLOR = 0xffa040;
 
 export const TREE_COLORS = {
-  pineTrunk: 0x5a3d28,
-  pineNeedle: 0x2f6b3a,
-  deciduousTrunk: 0x6b4a2f,
-  deciduousLeaf: 0x4a8a3f,
-  birchTrunk: 0xd8d2c4,
-  birchLeaf: 0x6fa85a,
+  pineTrunk: 0x3a2a24,
+  pineNeedle: 0x24504f,
+  deciduousTrunk: 0x4a3a30,
+  deciduousLeaf: 0x3b6b63,
+  birchTrunk: 0xc9c6d6,
+  birchLeaf: 0x5f8f7e,
 };
 export const PROP_COLORS_OUTDOOR = {
-  rock: [0x8a8f96, 0x7a7f86, 0x9a9490],
-  bush: [0x3d7a45, 0x4a8f52, 0x356b3c],
-  grass: [0x5a9a48, 0x6aad52, 0x4e8c3e],
-  fern: [0x3f7a48, 0x4d8f55],
-  flower: [0xe85d6a, 0xf2d35b, 0xc9a0e8],
-  mushroomStem: 0xe8dcc8,
-  mushroomCap: [0xc45a4a, 0xd8c8a0, 0x8b5a3c],
-  stump: 0x6b4a2f,
-  log: 0x5a3d28,
+  rock: [0x5a5f78, 0x4c5068, 0x686b82],
+  bush: [0x2f5f58, 0x3a6e63, 0x28524d],
+  grass: [0x3f7a5a, 0x4a8a64, 0x357055],
+  fern: [0x2f6a5a, 0x3b7a66],
+  flower: [0xff8fa3, 0xffd27a, 0xb69cff],
+  mushroomStem: 0xd8d0e0,
+  mushroomCap: [0xd9607a, 0xc9b6e8, 0x8b5a8c],
+  stump: 0x4a3a30,
+  log: 0x3a2c26,
 };
 
 // ---- 1. Zones ------------------------------------------------------------------------------------------

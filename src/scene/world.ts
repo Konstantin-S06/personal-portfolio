@@ -49,16 +49,76 @@ function varyScale(base: number, rand: () => number, amount = L.TREE_SCALE_VAR):
 }
 
 function gradientSky(): THREE.CanvasTexture {
+  const W = 1024;
+  const H = 640;
+  const FOG = '#343262'; // must equal WORLD_FOG_COLOR in look.ts
   const c = document.createElement('canvas');
-  c.width = 4;
-  c.height = 256;
+  c.width = W;
+  c.height = H;
   const g = c.getContext('2d')!;
-  const grad = g.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, '#3f78b8');
-  grad.addColorStop(0.55, '#9cc4e4');
-  grad.addColorStop(1, '#bcd6ea');
+
+  const grad = g.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0b1030');
+  grad.addColorStop(0.25, '#151a48');
+  grad.addColorStop(0.42, FOG);
+  grad.addColorStop(1, FOG);
   g.fillStyle = grad;
-  g.fillRect(0, 0, 4, 256);
+  g.fillRect(0, 0, W, H);
+
+  let seed = 12345;
+  const rnd = () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  // stars, fading out toward the horizon
+  g.fillStyle = '#e8ecff';
+  for (let i = 0; i < 170; i++) {
+    const x = rnd() * W;
+    const y = rnd() * H * 0.36;
+    g.globalAlpha = (0.35 + rnd() * 0.65) * (1 - y / (H * 0.4));
+    g.beginPath();
+    g.arc(x, y, 0.5 + rnd() * 1.1, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.globalAlpha = 1;
+
+  // moon with a soft glow
+  const mx = W * 0.74;
+  const my = H * 0.16;
+  const glow = g.createRadialGradient(mx, my, 0, mx, my, 130);
+  glow.addColorStop(0, 'rgba(190,200,255,0.45)');
+  glow.addColorStop(0.25, 'rgba(150,160,240,0.18)');
+  glow.addColorStop(1, 'rgba(120,130,220,0)');
+  g.fillStyle = glow;
+  g.fillRect(mx - 130, my - 130, 260, 260);
+  g.fillStyle = '#eef1ff';
+  g.beginPath();
+  g.arc(mx, my, 22, 0, Math.PI * 2);
+  g.fill();
+
+  // two layers of distant hills that fade into the fog colour at their base
+  const hill = (base: number, amp: number, f1: number, f2: number, p1: number, p2: number, top: string) => {
+    const gr = g.createLinearGradient(0, base - amp, 0, base + 8);
+    gr.addColorStop(0, top);
+    gr.addColorStop(1, FOG);
+    g.fillStyle = gr;
+    g.beginPath();
+    g.moveTo(0, H);
+    for (let x = 0; x <= W; x += 8) {
+      const n = (Math.sin(x * f1 + p1) * 0.6 + Math.sin(x * f2 + p2) * 0.4 + 1) / 2;
+      g.lineTo(x, base - amp * n);
+    }
+    g.lineTo(W, H);
+    g.closePath();
+    g.fill();
+  };
+  hill(H * 0.5, H * 0.09, 0.006, 0.017, 1.3, 4.1, '#2a2960');
+  hill(H * 0.52, H * 0.06, 0.009, 0.025, 2.7, 0.6, '#212056');
+
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -199,8 +259,8 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     maxZ = Math.max(maxZ, p.z);
   }
 
-  scene.add(new THREE.HemisphereLight(0xdcecff, 0x5b7a4a, 1.05));
-  const sun = new THREE.DirectionalLight(0xfff0d0, 2.0);
+  scene.add(new THREE.HemisphereLight(0x8fa0e0, 0x1c2a3a, 1.2));
+  const sun = new THREE.DirectionalLight(0xa9b8ff, 1.3);
   scene.add(sun, sun.target);
   const fireLight = new THREE.PointLight(L.CAMPFIRE_LIGHT_COLOR, L.CAMPFIRE_LIGHT_INTENSITY, L.CAMPFIRE_LIGHT_DISTANCE, 2);
   fireLight.position.set(campfire.x, 1.15, campfire.z);
@@ -632,7 +692,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   const groundD = maxZ - minZ;
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(groundW, groundD),
-    new THREE.MeshLambertMaterial({ color: 0x7fa65c }),
+    new THREE.MeshLambertMaterial({ color: 0x3a5f55 }),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.set((minX + maxX) / 2, 0, (minZ + maxZ) / 2);

@@ -75,7 +75,7 @@ export function ChapterContent({
     }
     case 'about':
       return (
-        <div className="container">
+        <div className="container about-copy">
           <h2>{title}</h2>
           <p>
             I'm a software engineer focused on building robust, production-ready applications.
