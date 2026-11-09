@@ -306,7 +306,8 @@
   text-align: center;
 }
 
-.panel > .container.hero-copy {
+.panel > .container.hero-copy,
+.panel > .container.about-copy {
   max-width: 760px;
 }
 
@@ -397,10 +398,6 @@ section.hero .btn-secondary:hover {
   text-transform: uppercase;
   opacity: 0.72;
   animation: scroll-bob 2.2s ease-in-out infinite;
-}
-
-.stage-pin[data-walk="1"] .scroll-hint {
-  display: none;
 }
 
 @keyframes scroll-bob {

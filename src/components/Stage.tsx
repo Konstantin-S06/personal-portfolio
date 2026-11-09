@@ -115,7 +115,6 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
     const isActive: boolean[] = [];
     const opacities: number[] = new Array(chapters.length).fill(0);
     let complete: boolean | null = null;
-    let walking: boolean | null = null;
 
     // ?debug=1: progress, active chapter and every panel's computed opacity.
     let hud: HTMLPreElement | null = null;
@@ -161,11 +160,6 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
       if (done !== complete) {
         complete = done;
         pin.dataset.complete = done ? 'true' : 'false';
-      }
-      const walk = p > 0.03;
-      if (walk !== walking) {
-        walking = walk;
-        pin.dataset.walk = walk ? '1' : '0';
       }
       const idx = activeIndex(ranges, p);
       if (idx !== active) {

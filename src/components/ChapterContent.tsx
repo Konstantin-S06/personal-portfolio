@@ -48,10 +48,15 @@ export function ChapterContent({
           <p className="hero-kicker">Computer Science Co-op · University of Toronto</p>
           <h1 className="hero-title">Konstantin Shtop</h1>
           <p className="hero-tagline">
-            I build full-stack apps, AI agents and tools that turn messy processes into things that just work.
+            I'm a computer science student who prefers to work on the backend: APIs, databases
+            and the logic behind an app.
+          </p>
+          <p className="hero-tagline">
+            Right now I'm a Software Developer intern at Environment and Climate Change Canada
+            a Software Engineer on the UofTHacks team, and an Undergraduate AI Research Assistant in the Department of Computer Science at the University of Toronto. 
           </p>
           <p className="hero-description">
-            Right now I'm a software developer intern at Environment and Climate Change Canada and an engineer on the UofTHacks team. Walk forward to see what I've built.
+          Scroll to walk through some of what I've built.
           </p>
           <div className="hero-actions">
             <a
@@ -77,16 +82,10 @@ export function ChapterContent({
       return (
         <div className="container about-copy">
           <h2>{title}</h2>
-          <p>
-            I'm a software engineer focused on building robust, production-ready applications.
-            My experience spans full-stack development with an emphasis on backend architecture,
-            RESTful API design, and database systems. I believe in writing clean, well-documented
-            code that prioritizes maintainability and scalability.
-          </p>
-          <p>
-            Currently pursuing a degree in Computer Science at the University of Toronto while building real-world applications
-            that solve practical problems. I approach every project with engineering best practices
-            in mind: modular design, proper separation of concerns, and defensive programming.
+          <p className="hero-tagline">
+          Outside of software, I'm usually playing volleyball, gaming, or exploring game development. I'm a big fan of Souls games, particularly Dark Souls III and Elden Ring, and have spent some time making smaller games in Unity and Roblox Studio.</p>
+          <p className="hero-tagline">
+          I'm always up for trying something new, meeting interesting people, or working on a cool project!
           </p>
         </div>
       );
