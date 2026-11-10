@@ -1,4 +1,4 @@
-import type { Chapter } from '../chapters';
+import { remainingProjects, type Chapter } from '../chapters';
 import type { Project } from '../lib/projects';
 import { ChapterContent } from './ChapterContent';
 
@@ -8,6 +8,7 @@ export function FlatSections({ chapters, projects }: { chapters: Chapter[]; proj
   const contactId = chapters.find((c) => c.kind === 'cta')?.id ?? 'connect';
   const projectTotal = chapters.filter((c) => c.kind === 'project').length;
   let projectNo = 0;
+  const moreProjects = remainingProjects(chapters, projects);
 
   return (
     <>
@@ -25,6 +26,7 @@ export function FlatSections({ chapters, projects }: { chapters: Chapter[]; proj
                 contactId,
                 projectIndex,
                 projectTotal,
+                moreProjects,
                 onNavigate: () => {},
               }}
             />

@@ -5,19 +5,12 @@ import { useProjects } from './lib/projects';
 import { layoutRanges } from './lib/stops';
 import { Stage, type NavHandler } from './components/Stage';
 import { FlatSections } from './components/FlatSections';
-import { MoreProjects } from './components/ProjectPanel';
 
 export default function App() {
   const pinned = usePinnedMode();
   const projects = useProjects();
   const chapters = useMemo(() => buildChapters(projects), [projects]);
   const navRef = useRef<NavHandler | null>(null);
-
-  // Projects that already have a chapter; everything else lands in the "More projects" grid.
-  const shown = useMemo(
-    () => new Set(chapters.flatMap((c) => (c.projectId !== undefined ? [c.projectId] : []))),
-    [chapters],
-  );
 
   // Dev only: print the chapter list with its progress ranges, and flag an unexpected featured count.
   useEffect(() => {
@@ -48,7 +41,7 @@ export default function App() {
     { id: 'about', label: 'About' },
     { id: firstProject?.id ?? 'more-projects', label: 'Projects' },
     { id: 'tech', label: 'Tech' },
-    { id: 'more-projects', label: 'More projects' },
+    ...(chapters.some((c) => c.kind === 'more') ? [{ id: 'more-projects', label: 'More projects' }] : []),
     { id: contact?.id ?? 'connect', label: 'Contact' },
   ];
 
@@ -62,11 +55,7 @@ export default function App() {
               <li key={item.label}>
                 <a
                   href={`#${item.id}`}
-                  onClick={(e) => {
-                    // "More projects" sits after the pin, so the browser scrolls to that section.
-                    if (item.id === 'more-projects') return;
-                    onChapterClick(e, item.id);
-                  }}
+                  onClick={(e) => onChapterClick(e, item.id)}
                 >
                   {item.label}
                 </a>
@@ -82,7 +71,6 @@ export default function App() {
         ) : (
           <FlatSections chapters={chapters} projects={projects} />
         )}
-        <MoreProjects projects={projects} shown={shown} />
       </main>
 
       <footer>

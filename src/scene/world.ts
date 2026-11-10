@@ -4,6 +4,7 @@ import type { BannerLabel } from './signs';
 import { pathDistance } from './scatter';
 import { loadNatureKit, type NatureAsset, type NatureKit, type NatureProgress } from './nature';
 import * as L from './look';
+import { createCampfireFx, FIRE_GAZE } from './fire';
 
 export interface World {
   /** Draw one frame for a 0-1 progress value. Call only when progress or size changed. */
@@ -702,15 +703,6 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   // ---- campfire clearing ------------------------------------------------------------------------------
   const campGroup = new THREE.Group();
   campGroup.name = 'campfire';
-  const flameMat = new THREE.MeshStandardMaterial({
-    color: L.CAMPFIRE_FLAME_COLOR,
-    emissive: L.CAMPFIRE_FLAME_COLOR,
-    emissiveIntensity: 2.2,
-    roughness: 1,
-    metalness: 0,
-    flatShading: true,
-  });
-  disposables.push(flameMat);
 
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -755,10 +747,9 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   campLogs.instanceMatrix.needsUpdate = true;
   campGroup.add(campLogs);
 
-  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.9, 5), flameMat);
-  flame.position.set(campfire.x, 0.55, campfire.z);
-  campGroup.add(flame);
-  disposables.push(flame.geometry);
+  const fireFx = createCampfireFx(campfire);
+  campGroup.add(fireFx.group);
+  disposables.push(fireFx);
 
   // Clearing ring of rocks (kit or procedural).
   const rockAsset = kit?.byRole.get('rock')?.[0] ?? null;
@@ -930,6 +921,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   // ---- camera / motion --------------------------------------------------------------------------------
   const pos = new THREE.Vector3();
   const look = new THREE.Vector3();
+  const gazeAim = new THREE.Vector3();
   const reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   let motion = !reducedQuery.matches;
   fireflies.visible = motion;
@@ -975,12 +967,15 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
 
     const p = Math.min(Math.max(lastProgress, 0), 1);
     curve.getPointAt(p, pos);
-    if (p < 0.92) {
-      curve.getPointAt(Math.min(p + 0.02, 1), look);
-    } else {
-      const w = THREE.MathUtils.smoothstep(p, 0.92, 1);
-      curve.getPointAt(Math.min(p + 0.02, 1), look);
-      look.lerp(new THREE.Vector3(campfire.x, 0.7, campfire.z), w);
+    curve.getPointAt(Math.min(p + 0.02, 1), look);
+    const wFire = THREE.MathUtils.smoothstep(p, FIRE_GAZE.start, 1);
+    if (wFire > 0) {
+      // Aim so the fire's base sits baseDeg below screen centre, then slide it left of centre for Contact.
+      const dist = Math.max(Math.hypot(campfire.x - pos.x, campfire.z - pos.z), 0.5);
+      const pitch = Math.atan2(pos.y, dist) - THREE.MathUtils.degToRad(FIRE_GAZE.baseDeg);
+      const side = dist * Math.tan(THREE.MathUtils.degToRad(FIRE_GAZE.sideDeg)) * THREE.MathUtils.smoothstep(p, FIRE_GAZE.sideStart, 1);
+      gazeAim.set(campfire.x - endTan.z * side, pos.y - dist * Math.tan(pitch), campfire.z + endTan.x * side);
+      look.lerp(gazeAim, wFire);
     }
     camera.position.copy(pos);
     camera.lookAt(look);
@@ -990,13 +985,11 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
 
     if (motion) {
       const flick = 0.85 + 0.2 * Math.sin(clock * 9.3) + 0.1 * Math.sin(clock * 17.1);
-      flame.scale.set(0.9 + 0.15 * flick, flick, 0.9 + 0.12 * flick);
-      flameMat.emissiveIntensity = 1.6 + 1.1 * flick;
+      fireFx.flicker = flick;
       fireLight.intensity = L.CAMPFIRE_LIGHT_INTENSITY * (0.75 + 0.35 * flick);
       mistCloud.offset.x = (mistCloud.offset.x + L.MIST_SCROLL_OUTDOOR * dt) % 1;
     } else {
-      flame.scale.set(1, 1, 1);
-      flameMat.emissiveIntensity = 2.0;
+      fireFx.flicker = 1;
       fireLight.intensity = L.CAMPFIRE_LIGHT_INTENSITY;
     }
 
@@ -1004,6 +997,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     flyUniforms.uCam.value.copy(camera.position);
     flyUniforms.uPx.value = (canvas.clientHeight || window.innerHeight) / (2 * Math.tan((camera.fov * Math.PI) / 360));
     flyUniforms.uMotion.value = motion ? 1 : 0;
+    fireFx.update(clock, flyUniforms.uPx.value);
 
     updateChunks();
 

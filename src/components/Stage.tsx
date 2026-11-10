@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
-import { pinLengthVh, type Chapter } from '../chapters';
+import { pinLengthVh, remainingProjects, type Chapter } from '../chapters';
 import type { Project } from '../lib/projects';
 import type { World } from '../scene/world'; // type only: the three.js code is loaded via import() below
 import type { BannerLabel } from '../scene/signs'; // type only
@@ -236,6 +236,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
   const contactId = chapters.find((c) => c.kind === 'cta')?.id ?? 'connect';
   const projectTotal = chapters.filter((c) => c.kind === 'project').length;
   let projectNo = 0;
+  const moreProjects = remainingProjects(chapters, projects);
   return (
     <div className="stage-track" ref={trackRef} style={{ height: `${pinLengthVh(chapters.length)}vh` }}>
       <div className="stage-pin" ref={pinRef}>
@@ -256,7 +257,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
             const projectIndex = c.kind === 'project' ? ++projectNo : undefined;
             return (
               <div
-                className={`panel${c.kind === 'project' ? ' panel-project' : ''}`}
+                className={`panel${c.kind === 'project' ? ' panel-project' : ''}${c.kind === 'more' ? ' panel-more' : ''}`}
                 id={c.id}
                 key={c.id}
                 ref={(el) => { panelRefs.current[i] = el; }}
@@ -271,6 +272,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
                     contactId,
                     projectIndex,
                     projectTotal,
+                    moreProjects,
                     onNavigate: (id) => navRef.current?.(id),
                   }}
                 />

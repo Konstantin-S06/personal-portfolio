@@ -508,44 +508,11 @@ def admin_migrate_postgres_to_turso():
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """POST /api/chat - AI-powered chat using Hugging Face"""
-    try:
-        from ai_helper import answer_portfolio_question
-        
-        data = request.get_json()
-        
-        if not data.get('question') or not data.get('question').strip():
-            return jsonify({'error': 'Question is required'}), 400
-        
-        question = data['question'].strip()
-        app.logger.info(f"Chat question: {question}")
-        
-        if len(question) > 500:
-            return jsonify({'error': 'Question too long'}), 400
-        
-        conn = get_db_connection()
-        try:
-            answer, debug = answer_portfolio_question(question, conn)
-            app.logger.info(f"Chat debug: {debug}")
-        finally:
-            conn.close()
-        
-        return jsonify({
-            'answer': answer,
-            'sql_query': None
-        }), 200
-        
-    except ImportError:
-        return jsonify({
-            'answer': 'AI chat is not configured. Please set HUGGINGFACE_API_KEY.',
-            'sql_query': None
-        }), 200
-    except Exception as e:
-        app.logger.error(f"Chat error: {str(e)}")
-        return jsonify({
-            'answer': 'Sorry, I encountered an error. Please try again.',
-            'sql_query': None
-        }), 200
+    """POST /api/chat - portfolio Q&A (guarded NL-to-SQL, keyword fallback)"""
+    from chat_service import handle_chat
+
+    body, status = handle_chat(request)
+    return jsonify(body), status
 
 
 @app.route('/api/health', methods=['GET'])

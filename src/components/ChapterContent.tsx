@@ -3,6 +3,7 @@ import type { ChapterKind } from '../chapters';
 import { techStack } from '../data/techstack';
 import type { Project } from '../lib/projects';
 import { ContactForm } from './ContactForm';
+import { MoreArc } from './MoreArc';
 import { ProjectPanel } from './ProjectPanel';
 
 export interface ChapterActions {
@@ -11,6 +12,7 @@ export interface ChapterActions {
   contactId: string;
   projectIndex?: number;
   projectTotal: number;
+  moreProjects?: Project[];
   onNavigate: (id: string) => void;
 }
 
@@ -115,6 +117,8 @@ export function ChapterContent({
         </div>
       );
     }
+    case 'more':
+      return <MoreArc title={title} projects={actions.moreProjects ?? []} />;
     case 'cta':
       return (
         <div className="container">
