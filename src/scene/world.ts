@@ -5,6 +5,9 @@ import { pathDistance } from './scatter';
 import { loadNatureKit, type NatureAsset, type NatureKit, type NatureProgress } from './nature';
 import * as L from './look';
 import { createCampfireFx, FIRE_GAZE } from './fire';
+import { createDirtPath } from './dirtPath';
+import { createThroneRoom } from './throneRoom';
+import { walkProgress, throneProgress } from '../lib/timeline';
 
 export interface World {
   /** Draw one frame for a 0-1 progress value. Call only when progress or size changed. */
@@ -249,6 +252,9 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   const campfire = endPt.clone().addScaledVector(endTan, 6);
   campfire.y = 0;
 
+  const room = createThroneRoom(endPt, endTan);
+  scene.add(room.group);
+
   let minX = Infinity;
   let maxX = -Infinity;
   let minZ = Infinity;
@@ -273,6 +279,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   const free = (x: number, z: number, r: number, clearance = L.PATH_CLEARANCE) =>
     distToPath(x, z) >= clearance + r &&
     Math.hypot(x - campfire.x, z - campfire.z) >= L.CAMPFIRE_CLEARING + r &&
+    !room.blocks(x, z, r) &&
     occupied.every((o) => Math.hypot(o.x - x, o.z - z) >= o.r + r);
 
   /** Sideways scatter along the extended path. `preferFar` biases acceptance toward the outer band. */
@@ -700,6 +707,10 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   scene.add(ground);
   disposables.push(ground.geometry, ground.material as THREE.Material);
 
+  const dirt = createDirtPath([...pathCore, ...room.routePoints], campfire);
+  scene.add(dirt.group);
+  disposables.push(dirt, room);
+
   // ---- campfire clearing ------------------------------------------------------------------------------
   const campGroup = new THREE.Group();
   campGroup.name = 'campfire';
@@ -965,7 +976,9 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     lastDrawAt = now;
     if (motion) clock += dt;
 
-    const p = Math.min(Math.max(lastProgress, 0), 1);
+    const pAll = Math.min(Math.max(lastProgress, 0), 1);
+    const p = walkProgress(pAll);
+    const tThrone = throneProgress(pAll);
     curve.getPointAt(p, pos);
     curve.getPointAt(Math.min(p + 0.02, 1), look);
     const wFire = THREE.MathUtils.smoothstep(p, FIRE_GAZE.start, 1);
@@ -976,6 +989,13 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
       const side = dist * Math.tan(THREE.MathUtils.degToRad(FIRE_GAZE.sideDeg)) * THREE.MathUtils.smoothstep(p, FIRE_GAZE.sideStart, 1);
       gazeAim.set(campfire.x - endTan.z * side, pos.y - dist * Math.tan(pitch), campfire.z + endTan.x * side);
       look.lerp(gazeAim, wFire);
+    }
+    if (tThrone > 0) {
+      room.cameraAt(tThrone, pos);
+      const fdist = Math.max(Math.hypot(campfire.x - pos.x, campfire.z - pos.z), 0.5);
+      const fpitch = Math.atan2(pos.y, fdist) - THREE.MathUtils.degToRad(FIRE_GAZE.baseDeg);
+      gazeAim.set(campfire.x, pos.y - fdist * Math.tan(fpitch), campfire.z);
+      room.gaze(tThrone, gazeAim, look);
     }
     camera.position.copy(pos);
     camera.lookAt(look);
@@ -998,6 +1018,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     flyUniforms.uPx.value = (canvas.clientHeight || window.innerHeight) / (2 * Math.tan((camera.fov * Math.PI) / 360));
     flyUniforms.uMotion.value = motion ? 1 : 0;
     fireFx.update(clock, flyUniforms.uPx.value);
+    room.update(clock, camera.position);
 
     updateChunks();
 

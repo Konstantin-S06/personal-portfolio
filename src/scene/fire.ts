@@ -15,7 +15,7 @@ export const FIRE_GAZE = {
   /** The fire's base sits this many degrees BELOW screen centre (half the vertical FOV is 25). Bigger = lower. */
   baseDeg: 14,
   /** Final sideways shift in degrees; positive puts the fire left of centre. */
-  sideDeg: 10,
+  sideDeg: 0,
 };
 
 const FLAME_LAYERS = [

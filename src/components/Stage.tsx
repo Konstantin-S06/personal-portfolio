@@ -257,7 +257,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
             const projectIndex = c.kind === 'project' ? ++projectNo : undefined;
             return (
               <div
-                className={`panel${c.kind === 'project' ? ' panel-project' : ''}${c.kind === 'more' ? ' panel-more' : ''}`}
+                className={`panel${c.kind === 'project' ? ' panel-project' : ''}${c.kind === 'more' ? ' panel-more' : ''}${c.kind === 'cta' ? ' panel-cta' : ''}${c.kind === 'chat' ? ' panel-chat' : ''}`}
                 id={c.id}
                 key={c.id}
                 ref={(el) => { panelRefs.current[i] = el; }}

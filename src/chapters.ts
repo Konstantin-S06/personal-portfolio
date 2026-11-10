@@ -1,7 +1,7 @@
 import type { Project } from './lib/projects';
 import { projectSeatCount } from './lib/stops';
 
-export type ChapterKind = 'hero' | 'about' | 'project' | 'tech' | 'more' | 'cta';
+export type ChapterKind = 'hero' | 'about' | 'project' | 'tech' | 'more' | 'cta' | 'chat';
 
 export interface Chapter {
   id: string;
@@ -16,6 +16,7 @@ const ABOUT: Chapter = { id: 'about', title: 'About Me', kind: 'about' };
 const TECH: Chapter = { id: 'tech', title: 'Tech Stack', kind: 'tech' };
 const MORE: Chapter = { id: 'more-projects', title: 'More Projects', kind: 'more' };
 const CONNECT: Chapter = { id: 'connect', title: "Let's Connect", kind: 'cta' };
+const CHAT: Chapter = { id: 'chat', title: 'Ask About My Work', kind: 'chat' };
 
 function pickFeatured(projects: Project[]): Project[] {
   return projects
@@ -33,7 +34,7 @@ export function buildChapters(projects: Project[]): Chapter[] {
   const ids = new Set(featured.map((p) => p.id));
   const hasMore = projects.some((p) => !ids.has(p.id));
   const stops = featured.map<Chapter>((p) => ({ id: `project-${p.id}`, title: p.title, kind: 'project', projectId: p.id }));
-  return [HOME, ABOUT, ...stops, TECH, ...(hasMore ? [MORE] : []), CONNECT];
+  return [HOME, ABOUT, ...stops, TECH, ...(hasMore ? [MORE] : []), CONNECT, CHAT];
 }
 
 /** Projects that have no chapter of their own, in the order the list already has. */

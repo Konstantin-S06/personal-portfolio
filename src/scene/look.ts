@@ -16,7 +16,7 @@ export const MAX_DRAW_CALLS = 120;
 export const SHADOW_MAPS = false;
 
 export const WORLD_SEED = 7;
-export const PATH_CLEARANCE = 1; // nothing sits closer than this to the camera path
+export const PATH_CLEARANCE = 1.7; // nothing sits closer than this to the camera path
 export const PATH_EXTEND = 60; // scatter continues this far past the curve end
 export const TREE_SCALE_VAR = 0.2; // +-20% for kit models
 export const TREE_COLOR_VAR = 0.1; // +-10% (procedural only)

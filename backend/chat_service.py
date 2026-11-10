@@ -2,9 +2,12 @@
 Request handler for POST /api/chat. Kept out of app.py so it can be tested without
 the rest of the app.
 
-Order: validate input -> rate limit -> guarded NL-to-SQL on a read-only connection ->
-existing keyword logic (ai_helper.answer_portfolio_question) if that path is unavailable
-or declines. Question text is never logged, only its length.
+Order: validate input -> rate limit -> deterministic intents (chat_intents; code-built
+answers, no model) -> guarded NL-to-SQL on a read-only connection -> existing keyword logic
+(ai_helper.answer_portfolio_question). Question text is never logged, only its length.
+
+Every response body has: kind ("list" | "count" | "text" | "refusal"), answer (string),
+items, suggestions, sql_query (always None). Counts and lists may add "count".
 """
 
 import hashlib
@@ -13,6 +16,12 @@ import os
 import re
 from typing import Any, Callable, Dict, Optional, Tuple
 
+from chat_intents import (
+    answer_intent,
+    load_from_connection,
+    load_from_runner,
+    refusal_body,
+)
 from chat_sql import MAX_QUESTION_CHARS, RateLimiter, answer_with_sql
 
 logger = logging.getLogger(__name__)
@@ -76,6 +85,29 @@ def _default_fallback(question: str) -> str:
     return answer
 
 
+def _default_projects_loader():
+    from db import get_db_connection
+
+    conn = get_db_connection()
+    try:
+        return load_from_connection(conn)
+    finally:
+        conn.close()
+
+
+# The keyword fallback ends in one of these when it has nothing to say. Those are refusals,
+# not answers, so they are returned as kind="refusal" with example questions that work.
+REFUSAL_PREFIXES = (
+    "I can only answer questions about",
+    "I can answer questions about",
+    "The chat assistant is read-only",
+)
+
+
+def _text_body(answer: str) -> Dict[str, Any]:
+    return {"kind": "text", "answer": answer, "items": [], "suggestions": [], "sql_query": None}
+
+
 def handle_chat(
     req,
     *,
@@ -83,6 +115,7 @@ def handle_chat(
     llm: Optional[Callable] = None,
     runner_factory: Optional[Callable] = None,
     fallback: Optional[Callable[[str], str]] = None,
+    projects_loader: Optional[Callable] = None,
 ) -> Tuple[Dict[str, Any], int]:
     data = req.get_json(silent=True)
     if not isinstance(data, dict):
@@ -99,17 +132,37 @@ def handle_chat(
             if decision.reason == "minute"
             else f"The chat has reached its limit for now. Please try again in about {mins} minute{'s' if mins != 1 else ''}, or use the contact form."
         )
-        return {"error": "Rate limit reached", "answer": msg, "retry_after": decision.retry_after}, 429
+        return {"error": "Rate limit reached", "kind": "text", "answer": msg, "items": [], "suggestions": [],
+                "retry_after": decision.retry_after}, 429
 
     answer: Optional[str] = None
+    body: Optional[Dict[str, Any]] = None
     path = "fallback"
+    intent_name = ""
     runner = None
+
+    def load_projects():
+        if projects_loader is not None:
+            return projects_loader()
+        if runner is not None:
+            return load_from_runner(runner)
+        return _default_projects_loader()
+
     try:
         try:
             runner = (runner_factory or _default_runner_factory)()
         except Exception as e:  # includes ReadOnlyTokenError: SQL path stays off
             logger.error("chat SQL path disabled: %s", e)
-        if runner is not None:
+        try:
+            body = answer_intent(question, load_projects)
+        except Exception as e:  # DB hiccup etc.: fall through to the model path
+            logger.warning("chat intent layer failed: %s", type(e).__name__)
+            body = None
+        if body is not None:
+            path = "intent"
+            intent_name = str(body.pop("intent", "") or "")
+            body["sql_query"] = None
+        elif runner is not None:
             try:
                 answer, debug = answer_with_sql(question, runner.run, llm or _default_llm)
                 if answer is not None:
@@ -118,13 +171,25 @@ def handle_chat(
                     logger.info("chat sql path declined: %s", debug.get("declined") or debug.get("rejected"))
             except ImportError:
                 answer = None  # openai not installed; use the keyword logic
-        if answer is None:
+        if body is None and answer is None:
             answer = (fallback or _default_fallback)(question)
+        if body is None:
+            if isinstance(answer, str) and answer.startswith(REFUSAL_PREFIXES):
+                try:
+                    projects = load_projects()
+                except Exception:
+                    projects = None
+                body = refusal_body(projects)
+                body.pop("intent", None)
+                body["sql_query"] = None
+                path = "refusal"
+            else:
+                body = _text_body(answer)
     except ImportError:
-        return {"answer": "AI chat is not configured. Please set HUGGINGFACE_API_KEY.", "sql_query": None}, 200
+        return _text_body("AI chat is not configured. Please set HUGGINGFACE_API_KEY."), 200
     except Exception as e:
         logger.error("chat error: %s", type(e).__name__)
-        return {"answer": "Sorry, I encountered an error. Please try again.", "sql_query": None}, 200
+        return _text_body("Sorry, I encountered an error. Please try again."), 200
     finally:
         if runner is not None:
             try:
@@ -132,5 +197,5 @@ def handle_chat(
             except Exception:
                 pass
 
-    logger.info("chat path=%s question_chars=%d", path, len(question))
-    return {"answer": answer, "sql_query": None}, 200
+    logger.info("chat path=%s intent=%s question_chars=%d", path, intent_name or "-", len(question))
+    return body, 200

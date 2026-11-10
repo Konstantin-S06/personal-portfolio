@@ -43,6 +43,7 @@ export default function App() {
     { id: 'tech', label: 'Tech' },
     ...(chapters.some((c) => c.kind === 'more') ? [{ id: 'more-projects', label: 'More projects' }] : []),
     { id: contact?.id ?? 'connect', label: 'Contact' },
+    ...(chapters.some((c) => c.kind === 'chat') ? [{ id: 'chat', label: 'Chat' }] : []),
   ];
 
   return (

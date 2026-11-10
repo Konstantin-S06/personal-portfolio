@@ -2,6 +2,7 @@ import type { CSSProperties, MouseEvent } from 'react';
 import type { ChapterKind } from '../chapters';
 import { techStack } from '../data/techstack';
 import type { Project } from '../lib/projects';
+import { ChatPanel } from './ChatPanel';
 import { ContactForm } from './ContactForm';
 import { MoreArc } from './MoreArc';
 import { ProjectPanel } from './ProjectPanel';
@@ -119,6 +120,8 @@ export function ChapterContent({
     }
     case 'more':
       return <MoreArc title={title} projects={actions.moreProjects ?? []} />;
+    case 'chat':
+      return <ChatPanel title={title} />;
     case 'cta':
       return (
         <div className="container">

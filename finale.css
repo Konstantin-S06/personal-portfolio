@@ -1,0 +1,72 @@
+
+/* ==== Finale: contact centring and chat panel (appended by apply_finale_patch.py) ==== */
+
+/* Contact: true centre of the screen, and thinner glass so the fire shows through. */
+.panel-cta { padding: 24px; }
+.panel-cta .contact-card {
+  background:
+    linear-gradient(to top, rgba(255, 150, 60, 0.14), rgba(255, 150, 60, 0) 42%),
+    rgba(16, 20, 34, 0.5);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+/* Chat: card sits low so the throne stays visible above it. */
+.panel-chat {
+  align-items: flex-end;
+  overflow: hidden;
+  padding: 24px 24px 28px;
+  text-shadow: none;
+}
+.chat-card {
+  width: min(640px, 100%);
+  margin: 0 auto;
+  text-align: left;
+  padding: 16px 20px 18px;
+  border-radius: 16px;
+  background: rgba(10, 22, 30, 0.74);
+  border: 1px solid rgba(120, 230, 215, 0.28);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 26px -10px rgba(90, 230, 210, 0.4);
+}
+.chat-card h2 { text-align: center; font-size: 1.35rem; margin: 0 0 0.25rem; color: #fff; }
+.chat-lead { text-align: center; margin: 0 0 0.6rem; color: rgba(255, 255, 255, 0.8); font-size: 0.95rem; }
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 24vh;
+  overflow-y: auto;
+  margin: 0 0 10px;
+}
+.chat-msg { max-width: 88%; padding: 8px 12px; border-radius: 10px; font-size: 0.95rem; line-height: 1.5; }
+.chat-msg.user { align-self: flex-end; background: rgba(255, 255, 255, 0.13); }
+.chat-msg.bot { align-self: flex-start; background: rgba(90, 230, 210, 0.12); border: 1px solid rgba(90, 230, 210, 0.25); }
+.chat-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+.chat-chip {
+  cursor: pointer;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: #dff;
+  background: rgba(90, 230, 210, 0.1);
+  border: 1px solid rgba(90, 230, 210, 0.35);
+  border-radius: 999px;
+}
+.chat-chip:hover:not(:disabled) { background: rgba(90, 230, 210, 0.2); }
+.chat-form { display: flex; gap: 8px; }
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  font: inherit;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+}
+.chat-form input:focus-visible,
+.chat-chip:focus-visible { outline: 2px solid #7ff5e6; outline-offset: 2px; }
+.chat-form button:disabled, .chat-chip:disabled { opacity: 0.55; cursor: default; }
+@media (max-width: 640px) { .chat-log { max-height: 30vh; } }
