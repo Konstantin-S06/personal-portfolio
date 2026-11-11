@@ -282,9 +282,7 @@ export function ChatPanel({ title }: { title: string }) {
   };
 
   // Extras for the spread on screen: chips and project links belong to the answer on the right page.
-  const msg = book.answer >= 0 ? replies[book.answer] ?? null : null;
-  const chipList = book.answer < 0 ? SUGGESTIONS : msg ? (msg.suggestions.length ? msg.suggestions : msg.kind === 'refusal' ? SUGGESTIONS : []) : [];
-  const linked = msg ? msg.items.filter((it) => it.github || it.demo).slice(0, 4) : [];
+  const chipList = book.index === 0 ? SUGGESTIONS : []; // the three starter questions appear on the front page only
   const hide = book.turning ? ' hidden' : '';
 
   return (
@@ -301,26 +299,6 @@ export function ChatPanel({ title }: { title: string }) {
       </div>
       <div className="book-page book-right">
         <div className={`book-extras${hide}`}>
-          {linked.length > 0 && (
-            <div className="book-links">
-              {linked.map((it, i) => (
-                <span key={`${it.title}-${i}`}>
-                  {it.title}:{' '}
-                  {it.github && (
-                    <a href={it.github} target="_blank" rel="noopener noreferrer">
-                      Code
-                    </a>
-                  )}
-                  {it.github && it.demo && ' · '}
-                  {it.demo && (
-                    <a href={it.demo} target="_blank" rel="noopener noreferrer">
-                      Demo
-                    </a>
-                  )}
-                </span>
-              ))}
-            </div>
-          )}
           {chipList.length > 0 && (
             <div className="chat-chips">
               {chipList.map((s) => (

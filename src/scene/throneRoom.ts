@@ -40,7 +40,8 @@ const routeE = (t: number) => {
 const LECT_U = 47.3; // distance of the lectern along the court
 const LECT_S = 0.85; // lectern scale. 1.0 = the approved preview size
 const DESK_TILT = 0.38;
-const BOOK_Y = 0.9 + LECT_S * 3.12; // world height of the book centre
+const BOOK_LIFT = 0.05; // the book sits this far above the desk, so the page stack and cover slab have thickness
+const BOOK_Y = 0.9 + LECT_S * (3.12 + BOOK_LIFT); // world height of the book centre
 const CAM_END_U = LECT_U - 1.1; // the camera finishes this far along, above and in front of the book
 const CAM_END_Y = BOOK_Y + 1.25; // higher = looks down on the pages more squarely (more readable), lower = more cinematic
 const LIGHT_BASE = 50;
@@ -120,48 +121,6 @@ function canvasTex(size: number, draw: (g: CanvasRenderingContext2D, s: number) 
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
-
-const TEAL = '#7ff5e6';
-
-/** Ground emblem laid on the carpet and on the dais: rings, a six-pointed star, ticks. */
-const emblemTexture = () =>
-  canvasTex(512, (g, S) => {
-    const c = S / 2;
-    g.strokeStyle = TEAL;
-    g.fillStyle = TEAL;
-    g.lineCap = 'round';
-    g.lineJoin = 'round';
-    for (const [r, w] of [[240, 8], [218, 3], [150, 5]] as [number, number][]) {
-      g.lineWidth = w;
-      g.beginPath();
-      g.arc(c, c, r, 0, Math.PI * 2);
-      g.stroke();
-    }
-    g.lineWidth = 4;
-    for (let t = 0; t < 2; t++) {
-      g.beginPath();
-      for (let i = 0; i < 3; i++) {
-        const a = (i / 3) * Math.PI * 2 + (t ? Math.PI / 3 : 0) - Math.PI / 2;
-        const x = c + Math.cos(a) * 150;
-        const y = c + Math.sin(a) * 150;
-        if (i === 0) g.moveTo(x, y);
-        else g.lineTo(x, y);
-      }
-      g.closePath();
-      g.stroke();
-    }
-    for (let i = 0; i < 24; i++) {
-      const a = (i / 24) * Math.PI * 2;
-      g.lineWidth = i % 2 ? 3 : 6;
-      g.beginPath();
-      g.moveTo(c + Math.cos(a) * 222, c + Math.sin(a) * 222);
-      g.lineTo(c + Math.cos(a) * (i % 2 ? 232 : 238), c + Math.sin(a) * (i % 2 ? 232 : 238));
-      g.stroke();
-    }
-    g.beginPath();
-    g.arc(c, c, 16, 0, Math.PI * 2);
-    g.fill();
-  });
 
 const glowTexture = () =>
   canvasTex(64, (g, S) => {
@@ -345,9 +304,10 @@ const FOOT_M = 28;
 const navState = { prev: false, next: false };
 
 const PAPER_ASH = '#b8aa85';
-const INK = '#17110c';
-const INK_SOFT = '#41352a';
-const INK_RED = '#6e2a17';
+const PAPER_SEED = (Math.random() * 1e6) | 0;
+const INK = '#10141c';
+const INK_SOFT = '#343c4a';
+const INK_RED = '#1b5953';
 const SERIF = 'Georgia, "Times New Roman", serif';
 
 function diamond(g: CanvasRenderingContext2D, x: number, y: number, r: number) {
@@ -358,16 +318,6 @@ function diamond(g: CanvasRenderingContext2D, x: number, y: number, r: number) {
   g.lineTo(x - r, y);
   g.closePath();
   g.fill();
-}
-
-function roundedRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  g.beginPath();
-  g.moveTo(x + r, y);
-  g.arcTo(x + w, y, x + w, y + h, r);
-  g.arcTo(x + w, y + h, x, y + h, r);
-  g.arcTo(x, y + h, x, y, r);
-  g.arcTo(x, y, x + w, y, r);
-  g.closePath();
 }
 
 /** Text with extra letter spacing (canvas letterSpacing is not available everywhere). */
@@ -401,8 +351,8 @@ function ornamentRule(g: CanvasRenderingContext2D, x0: number, x1: number, y: nu
 
 // --- ashen, scorched parchment, painted once per side and cached -------------------------------------------------------
 const paperCache: Record<string, HTMLCanvasElement> = {};
-function paperCanvas(rightPage: boolean): HTMLCanvasElement {
-  const key = rightPage ? 'R' : 'L';
+function paperCanvas(rightPage: boolean, variant = 0): HTMLCanvasElement {
+  const key = (rightPage ? 'R' : 'L') + variant;
   const hit = paperCache[key];
   if (hit) return hit;
   const W = PAGE_W_PX;
@@ -411,7 +361,7 @@ function paperCanvas(rightPage: boolean): HTMLCanvasElement {
   c.width = W;
   c.height = H;
   const g = c.getContext('2d')!;
-  const rnd = rng(rightPage ? 7 : 13);
+  const rnd = rng((rightPage ? 7 : 13) + variant * 977 + PAPER_SEED);
   g.fillStyle = PAPER_ASH;
   g.fillRect(0, 0, W, H);
   const blot = (x: number, y: number, r: number, rgb: string, a: number) => {
@@ -470,8 +420,8 @@ function paperCanvas(rightPage: boolean): HTMLCanvasElement {
   }
   for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) blot(x, y, 52, '18,9,3', 0.5);
   // the gutter side darkens a little toward the spine (kept narrow so the first letters of each line stay clear)
-  if (rightPage) burn(0, 0, 36, 0, 0, 0, 36, H, 0.4);
-  else burn(W, 0, W - 36, 0, W - 36, 0, 36, H, 0.4);
+  if (rightPage) burn(0, 0, 120, 0, 0, 0, 120, H, 0.34);
+  else burn(W, 0, W - 120, 0, W - 120, 0, 120, H, 0.34);
     // heavy vignette: the edges darken and brown, the middle stays clean for the text
     {
       const vg = g.createRadialGradient(W / 2, H / 2, H * 0.34, W / 2, H / 2, H * 0.74);
@@ -494,29 +444,45 @@ function paperCanvas(rightPage: boolean): HTMLCanvasElement {
       g.fillStyle = rnd() < 0.5 ? `rgba(20,12,6,${0.08 + rnd() * 0.14})` : `rgba(140,134,120,${0.06 + rnd() * 0.1})`;
       g.fillRect(rnd() * W, rnd() * H, 0.6 + rnd() * 1.4, 0.6 + rnd() * 1.4);
     }
+  g.save();
+  g.globalCompositeOperation = 'color'; // keeps the stains and burns, shifts the hue toward slate
+  g.globalAlpha = 0.6;
+  g.fillStyle = '#5d7c8a';
+  g.fillRect(0, 0, W, H);
+  g.restore();
   paperCache[key] = c;
   return c;
 }
 
-// --- page-block edge (striped aged paper) and soft contact shadows for the book ------------------------------------------
+// --- page-block edge: fine leaf lines, a touch darker than the page face, shaded under the page and against the cover ---
 let pageEdgeTex: THREE.CanvasTexture | null = null;
 function pageEdgeTexture(): THREE.CanvasTexture {
   if (pageEdgeTex) return pageEdgeTex;
+  const H = 48;
   const c = document.createElement('canvas');
   c.width = 16;
-  c.height = 64;
+  c.height = H;
   const g = c.getContext('2d')!;
   const rnd = rng(11);
-  for (let y = 0; y < 64; y++) {
-    const v = Math.round(86 + (0.5 + rnd() * 0.5) * 40);
-    g.fillStyle = `rgb(${v + 14},${v + 2},${Math.round(v * 0.72)})`;
+  for (let y = 0; y < H; y++) {
+    const v = 70 + rnd() * 22;
+    g.fillStyle = `rgb(${Math.round(v - 8)},${Math.round(v + 2)},${Math.round(v + 4)})`;
     g.fillRect(0, y, 16, 1);
+    if (y % 3 === 1) {
+      g.fillStyle = 'rgba(8,12,18,0.28)'; // the gap between leaves
+      g.fillRect(0, y, 16, 1);
+    }
   }
-  g.fillStyle = 'rgba(0,0,0,0.4)';
-  g.fillRect(0, 0, 16, 3);
-  g.fillRect(0, 61, 16, 3);
+  const sh = g.createLinearGradient(0, 0, 0, H);
+  sh.addColorStop(0, 'rgba(8,10,16,0.6)');
+  sh.addColorStop(0.35, 'rgba(8,10,16,0)');
+  sh.addColorStop(0.8, 'rgba(8,10,16,0)');
+  sh.addColorStop(1, 'rgba(8,10,16,0.5)');
+  g.fillStyle = sh;
+  g.fillRect(0, 0, 16, H);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
   pageEdgeTex = t;
   return t;
 }
@@ -580,12 +546,18 @@ function coverTexture(left: boolean): THREE.CanvasTexture {
   g.strokeStyle = 'rgba(0,0,0,0.6)';
   g.lineWidth = 1.5;
   g.strokeRect(22, 22, W - 44, H - 44);
+  g.save();
+  g.setLineDash([7, 6]);
+  g.strokeStyle = 'rgba(170,142,102,0.55)';
+  g.lineWidth = 1.6;
+  g.strokeRect(28, 11, W - 40, H - 22);
+  g.restore();
 
   const ironGrad = (y0: number, y1: number) => {
     const b = g.createLinearGradient(0, y0, 60, y1);
-    b.addColorStop(0, '#6a675f');
-    b.addColorStop(0.5, '#403e38');
-    b.addColorStop(1, '#201f1b');
+    b.addColorStop(0, '#4a4842');
+    b.addColorStop(0.5, '#33312d');
+    b.addColorStop(1, '#1d1c19');
     return b;
   };
   const rivet = (x: number, y: number) => {
@@ -593,7 +565,7 @@ function coverTexture(left: boolean): THREE.CanvasTexture {
     g.beginPath();
     g.arc(x, y, 6, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = '#8d897e';
+    g.fillStyle = '#5a574f';
     g.beginPath();
     g.arc(x - 1, y - 1, 3.4, 0, Math.PI * 2);
     g.fill();
@@ -633,32 +605,6 @@ function coverTexture(left: boolean): THREE.CanvasTexture {
   bracket();
   g.restore();
 
-  const cy = H / 2;
-  g.fillStyle = ironGrad(cy - 80, cy + 80);
-  roundedRect(g, 4, cy - 80, 52, 160, 10);
-  g.fill();
-  g.strokeStyle = 'rgba(0,0,0,0.85)';
-  g.lineWidth = 2;
-  g.stroke();
-  rust(4, cy - 80, 52, 160);
-  rivet(30, cy - 62);
-  rivet(30, cy + 62);
-  const boss = g.createRadialGradient(28, cy - 3, 2, 30, cy, 22);
-  boss.addColorStop(0, '#7d796f');
-  boss.addColorStop(1, '#25231f');
-  g.fillStyle = boss;
-  g.beginPath();
-  g.arc(30, cy, 22, 0, Math.PI * 2);
-  g.fill();
-  g.stroke();
-  const ember = g.createRadialGradient(30, cy, 1, 30, cy, 11);
-  ember.addColorStop(0, '#e0883a');
-  ember.addColorStop(0.55, '#8c3412');
-  ember.addColorStop(1, '#3a1208');
-  g.fillStyle = ember;
-  g.beginPath();
-  g.arc(30, cy, 10, 0, Math.PI * 2);
-  g.fill();
     // ash, soot and charring so the cover ages like the pages
     for (let i = 0; i < 30; i++) {
       const x = rnd() * W;
@@ -700,6 +646,14 @@ function coverTexture(left: boolean): THREE.CanvasTexture {
       g.fillStyle = gr;
       g.fillRect(x - r, y - r, 2 * r, 2 * r);
     }
+    g.globalCompositeOperation = 'color';
+    g.globalAlpha = 0.55;
+    g.fillStyle = '#4a6578';
+    g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1;
+    g.fillStyle = 'rgba(6,9,14,0.28)';
+    g.fillRect(0, 0, W, H);
   g.restore();
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
@@ -778,30 +732,46 @@ function drawFooter(g: CanvasRenderingContext2D, p: Page) {
     g.globalAlpha = 0.75;
     for (let x = M; x < M + 346; x += 5) g.fillRect(x, 686, 2.5, 1.2); // a dotted line to write on
     g.globalAlpha = 1;    const bx = W - M - 92;
-    const by = 650;
     const bw = 92;
-    const bh = 38;
     const ready = inputState.text.trim().length > 0;
     g.save();
-    // a faintly darkened, ink-bordered cartouche, like a printed label on the page
-    g.fillStyle = ready ? 'rgba(110,42,23,0.12)' : 'rgba(60,40,20,0.06)';
-    g.fillRect(bx, by, bw, bh);
-    g.strokeStyle = ready ? INK_RED : INK_SOFT;
-    g.globalAlpha = ready ? 0.9 : 0.55;
-    g.lineWidth = 1.2;
-    g.strokeRect(bx + 0.6, by + 0.6, bw - 1.2, bh - 1.2);
-    g.lineWidth = 0.8;
-    g.strokeRect(bx + 4.5, by + 4.5, bw - 9, bh - 9);
-    g.fillStyle = ready ? INK_RED : INK_SOFT;
-    diamond(g, bx + 2, by + bh / 2, 3);
-    diamond(g, bx + bw - 2, by + bh / 2, 3);
-    g.globalAlpha = 1;
-    g.font = `italic 21px ${SERIF}`;
+    // plain ink: lettering with a fine rule and two small diamonds beneath, like a catchword in a printed book
+    g.globalAlpha = ready ? 1 : 0.5;
+    g.font = `italic 22px ${SERIF}`;
     g.textAlign = 'center';
-    g.fillStyle = ready ? INK_RED : 'rgba(65,53,42,0.6)';
+    g.fillStyle = ready ? INK_RED : INK_SOFT;
     g.fillText('Ask', bx + bw / 2, 676);
+    g.fillRect(bx + 14, 683, bw - 28, ready ? 1.4 : 1);
+    diamond(g, bx + 12, 683.6, 2.6);
+    diamond(g, bx + bw - 12, 683.6, 2.6);
+    g.globalAlpha = 1;
     g.restore();
   }
+  g.restore();
+}
+
+// Keep in sync with SUGGESTIONS in ChatPanel.tsx. They are painted on the title page so they curve with the paper;
+// the DOM chips are invisible hit areas over these rows (see "Chat book v11" in styles.css).
+const STARTERS = ['How many projects use Python?', 'Which projects are featured?', 'What did you build with Flask?'];
+const STARTER_Y = [540, 566, 592]; // baselines on the 512x704 page
+
+function drawStarters(g: CanvasRenderingContext2D) {
+  const M = FOOT_M;
+  g.save();
+  g.globalAlpha = 0.55;
+  g.fillStyle = INK_SOFT;
+  g.fillRect(M, 508, PAGE_W_PX - 2 * M, 1.2);
+  g.globalAlpha = 1;
+  g.textBaseline = 'alphabetic';
+  g.textAlign = 'left';
+  STARTERS.forEach((s, i) => {
+    g.font = `16px ${SERIF}`;
+    g.fillStyle = INK_SOFT;
+    g.fillText(`${i + 1}.`, M + 4, STARTER_Y[i]);
+    g.font = `italic 19px ${SERIF}`;
+    g.fillStyle = INK;
+    g.fillText(s, M + 26, STARTER_Y[i]);
+  });
   g.restore();
 }
 
@@ -810,7 +780,7 @@ function paintPage(g: CanvasRenderingContext2D, p: Page, glow: boolean) {
   const H = PAGE_H_PX;
   const rightPage = (p.num - 1) % 2 === 0;
   g.clearRect(0, 0, W, H);
-  if (!glow) g.drawImage(paperCanvas(rightPage), 0, 0);
+  if (!glow) g.drawImage(paperCanvas(rightPage, (p.num >> 1) % 5), 0, 0);
   if (p.kind === 'blank') {
     if (!glow) drawFooter(g, p);
     return;
@@ -846,7 +816,7 @@ function paintPage(g: CanvasRenderingContext2D, p: Page, glow: boolean) {
         g.fillText(text, x0 + BULLET_IN, y);
       } else if (k === 4) {
         g.font = FONT_META;
-        g.fillStyle = glow ? col : INK_SOFT;
+        g.fillStyle = glow ? col : '#3f5d68';
         g.fillText(text, x0 + BULLET_IN, y - 4);
         g.fillStyle = col;
       } else if (k === 5) {
@@ -864,6 +834,7 @@ function paintPage(g: CanvasRenderingContext2D, p: Page, glow: boolean) {
     g.textAlign = 'left';
     g.font = FONT_BODY;
     write(PAGE_MARGIN, 200);
+    if (!glow) drawStarters(g);
   } else {
     g.font = `13px ${SERIF}`;
     spaced(g, (p.kind === 'user' ? 'YOUR QUESTION' : 'THE ANSWER') + (p.first ? '' : ' (CONTINUED)'), PAGE_MARGIN, 42, 3);
@@ -927,6 +898,258 @@ export function turnBook(dir: 'prev' | 'next' | 'first' | 'last') {
   window.dispatchEvent(new CustomEvent('book-nav', { detail: dir }));
 }
 
+// ---- floor cracks: baked height field -> colour + normal map, laid as decals on the tile tops -------------------
+const CR_U0 = 20.0;
+const CR_U1 = 41.2;
+const CR_V = 3.75;
+const CR_PPU = 128; // pixels per world unit. Drop to 96 if load time or memory is a problem
+const CR_W = Math.round(2 * CR_V * CR_PPU);
+const CR_H = Math.round((CR_U1 - CR_U0) * CR_PPU);
+
+const hash2 = (x: number, y: number) => {
+  let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+};
+const vnoise = (x: number, y: number) => {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const fx = x - ix;
+  const fy = y - iy;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  const a = hash2(ix, iy);
+  const b = hash2(ix + 1, iy);
+  const c = hash2(ix, iy + 1);
+  const d = hash2(ix + 1, iy + 1);
+  return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+};
+
+function crackTextures(seed: number): { color: THREE.DataTexture; normal: THREE.DataTexture } {
+  const W = CR_W;
+  const H = CR_H;
+  const N = W * H;
+  const hgt = new Float32Array(N); // world-unit height: <= 0 in recesses, small + on pebbles
+  const cov = new Float32Array(N); // 0..1 across the V, 1 at the crack centre
+  const halo = new Float32Array(N); // soft dark ambient-occlusion halo around cracks
+  const deb = new Float32Array(N); // debris: + light pebble, - dark pit
+  const rnd = rng(seed);
+  const edgeN = (x: number, y: number) => 0.6 * vnoise(x * 0.55, y * 0.55) + 0.4 * vnoise(x * 0.17 + 31.7, y * 0.17 + 17.3);
+
+  // one tapered segment: half-width w0 at (v0,u0) to w1 at (v1,u1), V-shaped profile, ragged rim
+  const seg = (v0: number, u0: number, w0: number, v1: number, u1: number, w1: number) => {
+    const ax = (v0 + CR_V) * CR_PPU;
+    const ay = (u0 - CR_U0) * CR_PPU;
+    const bx = (v1 + CR_V) * CR_PPU;
+    const by = (u1 - CR_U0) * CR_PPU;
+    const rp = (Math.max(w0, w1) + 0.04) * CR_PPU;
+    const xa = Math.max(0, Math.floor(Math.min(ax, bx) - rp));
+    const xb = Math.min(W - 1, Math.ceil(Math.max(ax, bx) + rp));
+    const ya = Math.max(0, Math.floor(Math.min(ay, by) - rp));
+    const yb = Math.min(H - 1, Math.ceil(Math.max(ay, by) + rp));
+    const dx = bx - ax;
+    const dy = by - ay;
+    const l2 = dx * dx + dy * dy || 1e-6;
+    for (let y = ya; y <= yb; y++) {
+      for (let x = xa; x <= xb; x++) {
+        let t = ((x - ax) * dx + (y - ay) * dy) / l2;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const ex = ax + dx * t - x;
+        const ey = ay + dy * t - y;
+        const d = Math.sqrt(ex * ex + ey * ey) / CR_PPU;
+        const hw = w0 + (w1 - w0) * t;
+        if (hw < 0.0012 || d > hw + 0.035) continue;
+        const de = d + (edgeN(x, y) - 0.5) * (hw * 0.9 + 0.005); // ragged, chipped rim
+        const i = y * W + x;
+        const hs = hw + 0.035;
+        const q = 1 - Math.min(1, Math.max(de, 0) / hs);
+        const hv = 0.5 * q * q;
+        if (hv > halo[i]) halo[i] = hv;
+        if (de < hw) {
+          const c = 1 - Math.max(de, 0) / hw;
+          if (c > cov[i]) cov[i] = c;
+          const hh = -hw * 0.9 * c;
+          if (hh < hgt[i]) hgt[i] = hh;
+        }
+      }
+    }
+  };
+
+  // shallow spall: a chipped-out pit beside a crack
+  const chip = (v: number, u: number, r: number) => {
+    const cx = (v + CR_V) * CR_PPU;
+    const cy = (u - CR_U0) * CR_PPU;
+    const rp = r * CR_PPU * 1.5;
+    for (let y = Math.max(0, Math.floor(cy - rp)); y <= Math.min(H - 1, Math.ceil(cy + rp)); y++) {
+      for (let x = Math.max(0, Math.floor(cx - rp)); x <= Math.min(W - 1, Math.ceil(cx + rp)); x++) {
+        const d = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / CR_PPU;
+        const de = d + (edgeN(x, y) - 0.5) * r * 0.9;
+        if (de >= r) continue;
+        const c = 1 - Math.max(de, 0) / r;
+        const i = y * W + x;
+        const hh = -0.01 * (0.5 + 0.5 * c);
+        if (hh < hgt[i]) hgt[i] = hh;
+        const cv = 0.15 + 0.25 * c;
+        if (cv > cov[i]) cov[i] = cv;
+      }
+    }
+  };
+
+  // small pebble (sgn +1) or dark pit (sgn -1)
+  const pebble = (v: number, u: number, r: number, sgn: number) => {
+    const cx = (v + CR_V) * CR_PPU;
+    const cy = (u - CR_U0) * CR_PPU;
+    const rp = r * CR_PPU + 1;
+    for (let y = Math.max(0, Math.floor(cy - rp)); y <= Math.min(H - 1, Math.ceil(cy + rp)); y++) {
+      for (let x = Math.max(0, Math.floor(cx - rp)); x <= Math.min(W - 1, Math.ceil(cx + rp)); x++) {
+        const d = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy)) / CR_PPU;
+        if (d >= r) continue;
+        const val = sgn * (1 - d / r);
+        const i = y * W + x;
+        if (Math.abs(val) > Math.abs(deb[i])) deb[i] = val;
+      }
+    }
+  };
+
+  // a fractal crack: midpoint displacement, width noise, taper, debris, and recursive side branches
+  const crack = (v0: number, u0: number, v1: number, u1: number, w0: number, depth: number, tailIn: boolean) => {
+    let pts: number[][] = [[v0, u0], [v1, u1]];
+    const levels = Math.max(3, 6 - depth);
+    for (let L = 0; L < levels; L++) {
+      const out: number[][] = [pts[0]];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i];
+        const b = pts[i + 1];
+        const dv = b[0] - a[0];
+        const du = b[1] - a[1];
+        const len = Math.sqrt(dv * dv + du * du) || 1e-6;
+        const k = (rnd() - 0.5) * len * 0.6;
+        out.push([(a[0] + b[0]) / 2 - (du / len) * k, (a[1] + b[1]) / 2 + (dv / len) * k]);
+        out.push(b);
+      }
+      pts = out;
+    }
+    const n = pts.length;
+    const ph = rnd() * 100;
+    const ws = pts.map((_, i) => {
+      const t = i / (n - 1);
+      const tp = tailIn ? Math.pow(Math.sin(Math.PI * t), 0.6) : Math.pow(1 - t, 0.7) * Math.min(1, t * 8 + 0.3);
+      return w0 * tp * (0.6 + 0.8 * vnoise(t * 9 + ph, 3.7));
+    });
+    for (let i = 0; i < n - 1; i++) seg(pts[i][0], pts[i][1], ws[i], pts[i + 1][0], pts[i + 1][1], ws[i + 1]);
+    for (let i = 1; i < n - 1; i++) {
+      const pv = pts[i][0];
+      const pu = pts[i][1];
+      const w = ws[i];
+      const tv = pts[i + 1][0] - pts[i - 1][0];
+      const tu = pts[i + 1][1] - pts[i - 1][1];
+      const tl = Math.sqrt(tv * tv + tu * tu) || 1e-6;
+      const nv = -tu / tl;
+      const nu = tv / tl;
+      if (w > 0.006 && rnd() < 0.08) {
+        const side = rnd() < 0.5 ? -1 : 1;
+        const off = w + 0.004 + rnd() * 0.02;
+        chip(pv + nv * side * off, pu + nu * side * off, 0.01 + rnd() * 0.022);
+      }
+      if (w > 0.004 && rnd() < 0.3) {
+        const cnt = 1 + ((rnd() * 3) | 0);
+        for (let k = 0; k < cnt; k++) {
+          const side = rnd() < 0.5 ? -1 : 1;
+          const off = w * (1.1 + rnd() * 1.2) + 0.004 + rnd() * 0.01;
+          pebble(pv + nv * side * off + (rnd() - 0.5) * 0.02, pu + nu * side * off + (rnd() - 0.5) * 0.02, 0.005 + rnd() * 0.008, rnd() < 0.65 ? 1 : -1);
+        }
+      }
+      if (depth < 3 && i > 3 && i < n - 4 && rnd() < 0.045) {
+        const a = Math.atan2(tu, tv) + (rnd() < 0.5 ? -1 : 1) * (0.4 + rnd() * 0.8);
+        const L = (0.5 + rnd() * 1.1) * Math.pow(0.6, depth);
+        crack(pv, pu, pv + Math.cos(a) * L, pu + Math.sin(a) * L, Math.max(0.004, w * 0.65), depth + 1, false);
+      }
+    }
+  };
+
+  for (let k = 0; k < 26; k++) {
+    const v = (rnd() < 0.5 ? -1 : 1) * (1.3 + rnd() * 2.3);
+    const u = CR_U0 + 1 + rnd() * (CR_U1 - CR_U0 - 2);
+    const a = rnd() * Math.PI * 2;
+    const L = 2 + rnd() * 4;
+    crack(v, u, v + Math.cos(a) * L, u + Math.sin(a) * L, 0.012 + rnd() * 0.016, 0, true);
+  }
+
+  // pebbles stand slightly proud of the surface
+  for (let i = 0; i < N; i++) if (deb[i] > 0) hgt[i] += 0.004 * deb[i];
+
+  const col = new Uint8Array(N * 4);
+  const nor = new Uint8Array(N * 4);
+  let cr = 0;
+  let cg = 0;
+  let cb = 0;
+  let ca = 0;
+  const over = (r: number, g: number, b: number, a: number) => {
+    if (a <= 0) return;
+    const oa = a + ca * (1 - a);
+    cr = (r * a + cr * ca * (1 - a)) / oa;
+    cg = (g * a + cg * ca * (1 - a)) / oa;
+    cb = (b * a + cb * ca * (1 - a)) / oa;
+    ca = oa;
+  };
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      const o = i * 4;
+      // colour
+      cr = 8;
+      cg = 8;
+      cb = 20;
+      ca = 0;
+      const hl = halo[i];
+      const cv = cov[i];
+      const db = deb[i];
+      if (hl > 0 || cv > 0 || db !== 0) {
+        over(8, 8, 20, hl * 0.45); // ambient-occlusion halo
+        if (cv > 0 && cv < 0.22) over(105, 110, 148, (1 - cv / 0.22) * 0.5); // fresh, lighter broken lip
+        if (cv > 0) over(4, 4, 12, Math.min(1, cv * 2.2) * 0.97); // dark core
+        if (db > 0) over(172, 178, 208, db * 0.75); // grit
+        else if (db < 0) over(5, 5, 12, -db * 0.8); // pits
+      }
+      col[o] = Math.round(cr);
+      col[o + 1] = Math.round(cg);
+      col[o + 2] = Math.round(cb);
+      col[o + 3] = Math.round(ca * 255);
+      // normal from the height field (tangent space: +x = +v, +y = +u)
+      const x0 = x > 0 ? x - 1 : x;
+      const x1 = x < W - 1 ? x + 1 : x;
+      const y0 = y > 0 ? y - 1 : y;
+      const y1 = y < H - 1 ? y + 1 : y;
+      const dhx = (hgt[y * W + x1] - hgt[y * W + x0]) / ((x1 - x0) / CR_PPU);
+      const dhy = (hgt[y1 * W + x] - hgt[y0 * W + x]) / ((y1 - y0) / CR_PPU);
+      if (dhx === 0 && dhy === 0) {
+        nor[o] = 128;
+        nor[o + 1] = 128;
+        nor[o + 2] = 255;
+      } else {
+        const nx = -dhx;
+        const ny = -dhy;
+        const inv = 1 / Math.sqrt(nx * nx + ny * ny + 1);
+        nor[o] = Math.round((nx * inv * 0.5 + 0.5) * 255);
+        nor[o + 1] = Math.round((ny * inv * 0.5 + 0.5) * 255);
+        nor[o + 2] = Math.round((inv * 0.5 + 0.5) * 255);
+      }
+      nor[o + 3] = 255;
+    }
+  }
+  const mk = (data: Uint8Array, srgb: boolean) => {
+    const t = new THREE.DataTexture(data, W, H, THREE.RGBAFormat);
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.generateMipmaps = true;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.anisotropy = 8;
+    t.needsUpdate = true;
+    return t;
+  };
+  return { color: mk(col, true), normal: mk(nor, false) };
+}
+
 export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): ThroneRoom {
   const f = new THREE.Vector3(endTan.x, 0, endTan.z).normalize();
   const up = new THREE.Vector3(0, 1, 0);
@@ -956,8 +1179,12 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   const WALL = [0x56566e, 0x4a4a62, 0x62627c, 0x504f68];
   const TILE = [0x40405a, 0x4a4a66, 0x383852, 0x444460];
   const DAIS = 0x6a6884;
-  const LECT_DARK = 0x45445f;
+  const LECT_DARK = 0x3d3c58;
   const LECT_LIGHT = 0x55547a;
+  const LECT_BASE = 0x34334c; // plinth
+  const LECT_STEP = 0x4b4a6c; // upper step
+  const LECT_RIM = 0x6c668f; // collar
+  const LECT_LIP = 0x2c2842; // desk lips
   const CARPET = 0x4a2a66;
   const MOSS = [0x2f5a46, 0x2a4f40, 0x37654c];
 
@@ -1004,7 +1231,7 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
       cylAt(u, v, 0.35, H, 0.52, pick(WALL));
       if (isBroken) {
         boxes.push({ x: v, y: 0.35 + H + 0.1, z: -u, sx: 0.75, sy: 0.3, sz: 0.7, color: pick(WALL), rx: (rand() - 0.5) * 0.7, rz: (rand() - 0.5) * 0.7 });
-        cyls.push({ x: v - side * 1.5, y: 0.5, z: -(u + (rand() - 0.5)), sx: 0.5, sy: 1.5, sz: 0.5, color: pick(WALL), rx: Math.PI / 2, ry: rand() * Math.PI });
+        cyls.push({ x: v + side * 1.9, y: 0.5, z: -(u + (rand() - 0.5)), sx: 0.5, sy: 1.5, sz: 0.5, color: pick(WALL), rx: Math.PI / 2, ry: rand() * Math.PI });
       } else {
         boxUV(u - 0.8, u + 0.8, v - 0.8, v + 0.8, 6.55, 6.95, pick(WALL));
         intact.push({ u, side });
@@ -1016,6 +1243,16 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
         cylAt(u, lv, 4.9, 2.1, 0.03, 0x2b2a3a);
         glow.push({ x: lv, y: 4.6, z: -u, sx: 0.28, sy: 0.42, sz: 0.28, color: 0xffffff });
         lanternPos.push(new THREE.Vector3(lv, 4.6, -u));
+        // lantern housing: iron caps and four posts around the glowing core
+        boxes.push({ x: lv, y: 4.88, z: -u, sx: 0.46, sy: 0.08, sz: 0.46, color: 0x2b2a3a });
+        boxes.push({ x: lv, y: 4.34, z: -u, sx: 0.36, sy: 0.08, sz: 0.36, color: 0x2b2a3a });
+        for (const [dx, dz] of [[-0.16, -0.16], [0.16, -0.16], [0.16, 0.16], [-0.16, 0.16]] as [number, number][]) {
+          boxes.push({ x: lv + dx, y: 4.6, z: -u + dz, sx: 0.04, sy: 0.54, sz: 0.04, color: 0x2b2a3a });
+        }
+        // column bands and a flared capital
+        cyls.push({ x: v, y: 1.3, z: -u, sx: 0.6, sy: 0.14, sz: 0.6, color: WALL[2] });
+        cyls.push({ x: v, y: 3.6, z: -u, sx: 0.58, sy: 0.1, sz: 0.58, color: WALL[2] });
+        cyls.push({ x: v, y: 6.36, z: -u, sx: 0.68, sy: 0.26, sz: 0.68, color: WALL[0] });
       }
       braziers.push({ u, v: side * (COL_V - 1.5) });
     }
@@ -1029,10 +1266,72 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   for (const s of [-1, 1]) braziers.push({ u: U_GATE - 1.4, v: s * 4.6 }); // beacons flanking the entrance
 
   // ---- avenue: tiles with gaps, carpet with glowing inlay, stepped dais -----------------------------------------
+  const shade = (c: number, k: number) => {
+    const r = Math.min(255, Math.round(((c >> 16) & 255) * k));
+    const g = Math.min(255, Math.round(((c >> 8) & 255) * k));
+    const b = Math.min(255, Math.round((c & 255) * k));
+    return (r << 16) | (g << 8) | b;
+  };
+  const tiles: { u: number; v: number; top: number; hw: number; col: number; flat: boolean; chip?: [number, number, number] }[] = [];
+  const rt2 = rng(555);
   for (let u = 20.8; u < 40.5; u += 1.5) {
     for (let k = -2; k <= 2; k++) {
       if (rand() < 0.12) continue;
-      boxUV(u - 0.7, u + 0.7, k * 1.5 - 0.7, k * 1.5 + 0.7, 0, 0.08, pick(TILE), { ry: (rand() - 0.5) * 0.05 });
+      const base = pick(TILE);
+      const yaw0 = (rand() - 0.5) * 0.05;
+      const cu = u;
+      const cv = k * 1.5;
+      const hw = 0.64 + rt2() * 0.06; // half size, so joints vary in width
+      const top = 0.08 + (rt2() - 0.5) * 0.05 - (rt2() < 0.22 ? 0.03 : 0); // some tiles have sunk deeper
+      const col = shade(base, 0.78 + rt2() * 0.42);
+      const rx = (rt2() - 0.5) * 0.024;
+      const rz = (rt2() - 0.5) * 0.024;
+      const yaw = yaw0 + (rt2() - 0.5) * 0.03;
+      const kind = Math.abs(cv) < 1.2 ? 1 : rt2(); // the centre tile sits under the carpet, keep it plain
+
+      if (kind < 0.15) {
+        // broken in two: halves at different heights with a dark gap between
+        const alongU = rt2() < 0.5;
+        const f = 0.35 + rt2() * 0.3;
+        const tB = Math.max(0.02, Math.min(0.11, top + (0.02 + rt2() * 0.04) * (rt2() < 0.5 ? -1 : 1)));
+        const rA = { rx: (rt2() - 0.5) * 0.03, rz: (rt2() - 0.5) * 0.03 };
+        const rB = { rx: (rt2() - 0.5) * 0.03, rz: (rt2() - 0.5) * 0.03 };
+        if (alongU) {
+          const cut = cu - hw + f * 2 * hw;
+          boxUV(cu - hw, cut - 0.025, cv - hw, cv + hw, -0.3, top, col, rA);
+          boxUV(cut + 0.025, cu + hw, cv - hw, cv + hw, -0.3, tB, shade(col, 0.92), rB);
+        } else {
+          const cut = cv - hw + f * 2 * hw;
+          boxUV(cu - hw, cu + hw, cv - hw, cut - 0.025, -0.3, top, col, rA);
+          boxUV(cu - hw, cu + hw, cut + 0.025, cv + hw, -0.3, tB, shade(col, 0.92), rB);
+        }
+        tiles.push({ u: cu, v: cv, top, hw, col, flat: false });
+      } else if (kind < 0.45) {
+        // chipped corner: the tile is an L shape plus a lower, darker step where the corner broke off
+        const su = rt2() < 0.5 ? -1 : 1;
+        const sv = rt2() < 0.5 ? -1 : 1;
+        const c = 0.22 + rt2() * 0.25;
+        const drop = 0.04 + rt2() * 0.04;
+        const vCut = sv > 0 ? cv + hw - c : cv - hw + c;
+        boxUV(cu - hw, cu + hw, sv > 0 ? cv - hw : vCut, sv > 0 ? vCut : cv + hw, -0.3, top, col);
+        boxUV(su > 0 ? cu - hw : cu - hw + c, su > 0 ? cu + hw - c : cu + hw, sv > 0 ? vCut : cv - hw, sv > 0 ? cv + hw : vCut, -0.3, top, col);
+        boxUV(su > 0 ? cu + hw - c : cu - hw, su > 0 ? cu + hw : cu - hw + c, sv > 0 ? vCut : cv - hw, sv > 0 ? cv + hw : vCut, -0.3, Math.max(0.015, top - drop), shade(col, 0.72));
+        tiles.push({ u: cu, v: cv, top, hw, col, flat: true, chip: [su, sv, c] });
+      } else {
+        boxUV(cu - hw, cu + hw, cv - hw, cv + hw, -0.3, top, col, { ry: yaw, rx, rz });
+        tiles.push({ u: cu, v: cv, top, hw, col, flat: true });
+      }
+
+      // moss creeping out of a joint on some tiles
+      if (rt2() < 0.35) {
+        const e = (rt2() * 4) | 0;
+        const len = 0.4 + rt2() * 0.6;
+        const off = (rt2() - 0.5) * (2 * hw - len);
+        const mc = MOSS[(rt2() * 3) | 0];
+        const s = e % 2 ? 1 : -1;
+        if (e < 2) boxUV(cu + s * hw - 0.05, cu + s * hw + 0.05, cv + off - len / 2, cv + off + len / 2, 0, top + 0.01, mc);
+        else boxUV(cu + off - len / 2, cu + off + len / 2, cv + s * hw - 0.05, cv + s * hw + 0.05, 0, top + 0.01, mc);
+      }
     }
   }
   boxUV(20.6, 40.5, -1, 1, 0.08, 0.12, CARPET);
@@ -1078,11 +1377,121 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   }
 
   // ---- rubble ------------------------------------------------------------------------------------------------
-  for (let i = 0; i < 55; i++) {
+  /*(for (let i = 0; i < 55; i++) {
     const u = 18 + rand() * 34;
     const v = (rand() < 0.5 ? -1 : 1) * (AVENUE_HALF + 0.3 + rand() * 7.5);
     const sz = 0.2 + rand() * 0.5;
     boxes.push({ x: v, y: sz * 0.35, z: -u, sx: sz * (1 + rand()), sy: sz, sz: sz * (1 + rand()), ry: rand() * Math.PI, rx: (rand() - 0.5) * 0.5, rz: (rand() - 0.5) * 0.5, color: pick(WALL) });
+  }*/
+
+  // keep-out zones so nothing lands on a brazier, a column or a statue
+  const STATUES: [number, number, boolean][] = [[-9, 27, false], [9, 27, false], [-9, 36, false], [9, 36, true]]; // v, u, headless
+  const clearOf = (u: number, v: number, extra = 0) =>
+    !braziers.some((b) => Math.hypot(b.u - u, b.v - v) < 1.3 + extra) &&
+    !COL_US.some((cu) => [-1, 1].some((s) => Math.hypot(cu - u, s * COL_V - v) < 1.5 + extra)) &&
+    !STATUES.some(([sv, su]) => Math.hypot(su - u, sv - v) < 1.6 + extra);
+
+  for (let i = 0; i < 55; i++) {
+    const u = 18 + rand() * 34;
+    const v = (rand() < 0.5 ? -1 : 1) * (AVENUE_HALF + 0.3 + rand() * 7.5);
+    const sz = 0.2 + rand() * 0.5;
+    const rb: Part = { x: v, y: sz * 0.35, z: -u, sx: sz * (1 + rand()), sy: sz, sz: sz * (1 + rand()), ry: rand() * Math.PI, rx: (rand() - 0.5) * 0.5, rz: (rand() - 0.5) * 0.5, color: pick(WALL) };
+    if (clearOf(u, v)) boxes.push(rb);
+  }
+
+  // broken flagstone patches either side of the avenue, for ground texture
+  const rp = rng(91);
+  for (let i = 0; i < 90; i++) {
+    const u = 17 + rp() * 36;
+    const v = (rp() < 0.5 ? -1 : 1) * (AVENUE_HALF + 0.2 + rp() * 6.5);
+    const w = 0.7 + rp() * 0.8;
+    const h = 0.06 + rp() * 0.08;
+    const col = TILE[(rp() * TILE.length) | 0];
+    const slab: Part = { x: v, y: h / 2 - 0.01, z: -u, sx: w, sy: h, sz: w * (0.7 + rp() * 0.4), ry: rp() * Math.PI, rx: (rp() - 0.5) * 0.08, rz: (rp() - 0.5) * 0.08, color: col };
+    if (clearOf(u, v, -0.5) && !(u > 39.5 && u < 52 && Math.abs(v) < 5.3)) boxes.push(slab);
+  }
+
+  // crack decals: one quad per tile top at that tile's own height, all sharing the baked crack maps (one draw call).
+  // Broken tiles get none; chipped tiles get two quads matching their L shape. Quads sit 0.04 inside the tile edge.
+  {
+    const ct = crackTextures(2026);
+    const crackMap = keepTex(ct.color);
+    const crackNormal = keepTex(ct.normal);
+    const pos: number[] = [];
+    const uvs: number[] = [];
+    const nrm: number[] = [];
+    const idx: number[] = [];
+    const INS = 0.04;
+    const quad = (u0: number, u1: number, v0: number, v1: number, y: number, k: [boolean, boolean, boolean, boolean]) => {
+      const a0 = u0 + (k[0] ? 0 : INS);
+      const a1 = u1 - (k[1] ? 0 : INS);
+      const b0 = v0 + (k[2] ? 0 : INS);
+      const b1 = v1 - (k[3] ? 0 : INS);
+      if (a1 <= a0 || b1 <= b0) return;
+      const base = pos.length / 3;
+      const vs: [number, number][] = [[b0, a1], [b0, a0], [b1, a1], [b1, a0]]; // [v, u]
+      for (const [vv, uu] of vs) {
+        pos.push(vv, y, -uu);
+        uvs.push((vv + CR_V) / (2 * CR_V), (uu - CR_U0) / (CR_U1 - CR_U0));
+        nrm.push(0, 1, 0);
+      }
+      idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+    };
+    for (const t of tiles) {
+      if (!t.flat || Math.abs(t.v) < 1.2) continue; // broken tiles and the carpet column
+      const y = t.top + 0.012;
+      const hw = t.hw;
+      if (t.chip) {
+        const [su, sv, c] = t.chip;
+        const vCut = sv > 0 ? t.v + hw - c : t.v - hw + c;
+        quad(t.u - hw, t.u + hw, sv > 0 ? t.v - hw : vCut, sv > 0 ? vCut : t.v + hw, y, [false, false, sv <= 0, sv > 0]);
+        quad(su > 0 ? t.u - hw : t.u - hw + c, su > 0 ? t.u + hw - c : t.u + hw, sv > 0 ? vCut : t.v - hw, sv > 0 ? t.v + hw : vCut, y, [su <= 0, su > 0, sv > 0, sv <= 0]);
+      } else {
+        quad(t.u - hw, t.u + hw, t.v - hw, t.v + hw, y, [false, false, false, false]);
+      }
+    }
+    if (idx.length) {
+      const g = keepGeo(new THREE.BufferGeometry());
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+      g.setIndex(idx);
+      const m = keepMat(
+        new THREE.MeshLambertMaterial({
+          map: crackMap,
+          normalMap: crackNormal,
+          normalScale: new THREE.Vector2(1.6, 1.6),
+          transparent: true,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -2,
+          polygonOffsetUnits: -2,
+        }),
+      );
+      const mesh = new THREE.Mesh(g, m);
+      mesh.renderOrder = 1;
+      mesh.frustumCulled = false;
+      body.add(mesh);
+    }
+  }
+
+  // hooded guardian statues outside the colonnade, facing the avenue; one has lost its head
+  for (const [v, u, headless] of STATUES) {
+    const s = v > 0 ? 1 : -1;
+    const c = WALL[2];
+    boxUV(u - 0.8, u + 0.8, v - 0.8, v + 0.8, 0, 0.5, WALL[1]);
+    boxUV(u - 0.6, u + 0.6, v - 0.6, v + 0.6, 0.5, 0.7, WALL[3]);
+    boxUV(u - 0.5, u + 0.5, v - 0.45, v + 0.45, 0.7, 2.4, c); // robe
+    boxUV(u - 0.4, u + 0.4, v - 0.5, v + 0.5, 2.4, 3.2, c); // torso
+    boxUV(u - 0.3, u + 0.3, v - 0.78, v + 0.78, 3.0, 3.4, c); // shoulders
+    cylAt(u, v - s * 0.62, 0.7, 3.4, 0.05, 0x2b2a3a); // staff on the aisle side
+    if (headless) {
+      boxUV(u - 0.25, u + 0.25, v - 0.25, v + 0.25, 3.4, 3.65, c, { rz: 0.15 });
+      boxes.push({ x: v - s * 1.4, y: 0.3, z: -(u + 0.5), sx: 0.6, sy: 0.6, sz: 0.6, color: c, ry: 0.6, rz: 0.3 });
+    } else {
+      boxUV(u - 0.3, u + 0.3, v - 0.3, v + 0.3, 3.4, 4.05, c); // hood
+      glow.push({ x: v - s * 0.31, y: 3.75, z: -u, sx: 0.04, sy: 0.07, sz: 0.3, color: 0xffffff }); // eye slit
+    }
   }
 
   // ---- extra ground and skyline detail: glowing cracks, fallen shafts, far ruin silhouettes --------------------------
@@ -1092,7 +1501,7 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
     let ang = rand() * Math.PI;
     for (let j = 0; j < 5; j++) {
       const len = 0.5 + rand() * 0.45;
-      glow.push({ x: v + Math.sin(ang) * len * 0.5, y: 0.1, z: -(u + Math.cos(ang) * len * 0.5), sx: 0.045, sy: 0.02, sz: len, ry: ang, color: 0xffffff });
+      //glow.push({ x: v + Math.sin(ang) * len * 0.5, y: 0.1, z: -(u + Math.cos(ang) * len * 0.5), sx: 0.045, sy: 0.02, sz: len, ry: ang, color: 0xffffff });
       v += Math.sin(ang) * len;
       u += Math.cos(ang) * len;
       ang += (rand() - 0.5) * 1.3;
@@ -1202,16 +1611,34 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
 
   // ---- braziers: stands, bowls, two flame layers, halos --------------------------------------------------------------
   const standParts: Part[] = [];
+  const standBoxes: Part[] = [];
   const flameParts: Part[] = [];
   const flamePos: THREE.Vector3[] = [];
-  braziers.forEach(({ u, v }) => {
-    standParts.push({ x: v, y: 0.6, z: -u, sx: 0.22, sy: 1.2, sz: 0.22, color: 0x2b2a3a });
-    standParts.push({ x: v, y: 1.32, z: -u, sx: 0.55, sy: 0.3, sz: 0.55, color: 0x3a3950 });
-    flamePos.push(new THREE.Vector3(v, 1.47, -u));
+  const IRON = 0x2b2a3a;
+  braziers.forEach(({ u, v }, bi) => {
+    const yaw = bi * 0.37;
+    // stepped square plinth
+    standBoxes.push({ x: v, y: 0.12, z: -u, sx: 1.1, sy: 0.24, sz: 1.1, color: 0x62627c, ry: yaw });
+    standBoxes.push({ x: v, y: 0.34, z: -u, sx: 0.8, sy: 0.2, sz: 0.8, color: 0x4a4a62, ry: yaw });
+    // collared shaft with a knob
+    standParts.push({ x: v, y: 0.5, z: -u, sx: 0.34, sy: 0.12, sz: 0.34, color: IRON });
+    standParts.push({ x: v, y: 0.9, z: -u, sx: 0.2, sy: 0.7, sz: 0.2, color: 0x504f68 });
+    standParts.push({ x: v, y: 0.9, z: -u, sx: 0.3, sy: 0.14, sz: 0.3, color: IRON });
+    standParts.push({ x: v, y: 1.28, z: -u, sx: 0.34, sy: 0.12, sz: 0.34, color: IRON });
+    // stepped bowl and rim
+    standParts.push({ x: v, y: 1.38, z: -u, sx: 0.4, sy: 0.12, sz: 0.4, color: 0x3a3950 });
+    standParts.push({ x: v, y: 1.5, z: -u, sx: 0.58, sy: 0.12, sz: 0.58, color: 0x504f68 });
+    standParts.push({ x: v, y: 1.6, z: -u, sx: 0.7, sy: 0.08, sz: 0.7, color: 0x62627c });
+
+  
+    flamePos.push(new THREE.Vector3(v, 1.64, -u));
     flameParts.push({ x: v, y: 2, z: -u, sx: 0.34, sy: 1.2, sz: 0.34, color: 0x2fd2bd });
     flameParts.push({ x: v, y: 2, z: -u, sx: 0.2, sy: 0.7, sz: 0.2, color: 0xcafff6 });
   });
   const stands = instanced(cylGeo, stoneMat, standParts);
+  const standBlocks = instanced(boxGeo, stoneMat, standBoxes);
+  body.add(standBlocks);
+  meshes.push(standBlocks);
   const coneGeo = keepGeo(new THREE.ConeGeometry(1, 1, 8));
   const flameMat = keepMat(
     new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
@@ -1219,6 +1646,22 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   const flames = instanced(coneGeo, flameMat, flameParts);
   body.add(stands, flames);
   meshes.push(stands, flames);
+
+  // grass and fern tufts creeping through the ruin
+  const rt = rng(77);
+  const tuftParts: Part[] = [];
+  for (let i = 0; i < 140; i++) {
+    const u = 17 + rt() * 36;
+    const v = (rt() < 0.5 ? -1 : 1) * (3.9 + rt() * 8);
+    if (!clearOf(u, v, -0.4)) continue;
+    for (let b = 0; b < 4; b++) {
+      const h = 0.35 + rt() * 0.35;
+      tuftParts.push({ x: v + (rt() - 0.5) * 0.35, y: h / 2, z: -(u + (rt() - 0.5) * 0.35), sx: 0.07, sy: h, sz: 0.07, rx: (rt() - 0.5) * 0.5, rz: (rt() - 0.5) * 0.5, color: MOSS[(rt() * 3) | 0] });
+    }
+  }
+  const tufts = instanced(coneGeo, stoneMat, tuftParts);
+  body.add(tufts);
+  meshes.push(tufts);
 
   const glowTex = keepTex(glowTexture());
   const haloGeo = keepGeo(new THREE.BufferGeometry());
@@ -1256,23 +1699,26 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   const motes = new THREE.Points(moteGeo, moteMat);
   motes.frustumCulled = false;
   body.add(motes);
+    // embers drifting up around the lectern
+    const EMBERS = 34;
+    const emberBase = new Float32Array(EMBERS * 4); // angle, radius, speed, phase
+    const emberPos = new Float32Array(EMBERS * 3);
+    for (let i = 0; i < EMBERS; i++) {
+      emberBase[i * 4] = rand() * Math.PI * 2;
+      emberBase[i * 4 + 1] = 1.1 + rand() * 1.5;
+      emberBase[i * 4 + 2] = 0.05 + rand() * 0.07;
+      emberBase[i * 4 + 3] = rand();
+    }
+    const emberGeo = keepGeo(new THREE.BufferGeometry());
+    emberGeo.setAttribute('position', new THREE.BufferAttribute(emberPos, 3));
+    const emberMat = keepMat(
+      new THREE.PointsMaterial({ map: glowTex, size: 0.1, color: 0xff8a3a, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }),
+    );
+    const embers = new THREE.Points(emberGeo, emberMat);
+    embers.frustumCulled = false;
+    body.add(embers); 
 
   // ---- rune disc in the arch, ground emblems, gate mist, low mist ------------------------------------------------------------------
-
-  const emblemTex = keepTex(emblemTexture());
-  const emblemGeo = keepGeo(new THREE.PlaneGeometry(6.4, 6.4).rotateX(-Math.PI / 2));
-  const emblemMat = keepMat(
-    new THREE.MeshBasicMaterial({ map: emblemTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
-  );
-  const emblem = new THREE.Mesh(emblemGeo, emblemMat);
-  emblem.position.set(0, 0.15, -33);
-  emblem.renderOrder = 2;
-  body.add(emblem);
-  const daisEmblem = new THREE.Mesh(emblemGeo, emblemMat); // inlay under the lectern
-  daisEmblem.position.set(0, 0.93, -LECT_U);
-  daisEmblem.scale.setScalar(0.78);
-  daisEmblem.renderOrder = 2;
-  body.add(daisEmblem);
 
   const mistTex = keepTex(mistTexture());
   const gateMistGeo = keepGeo(new THREE.PlaneGeometry(GATE_V * 2 - 1.6, GATE_H - 0.4));
@@ -1306,7 +1752,7 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   const lmat = (c: number) => {
     let m = lm.get(c);
     if (!m) {
-      m = keepMat(new THREE.MeshLambertMaterial({ color: c, flatShading: true }));
+      m = keepMat(new THREE.MeshLambertMaterial({ color: c, flatShading: true }));  
       lm.set(c, m);
     }
     return m;
@@ -1325,11 +1771,11 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
     lect.add(o);
   };
   // stepped plinth, octagonal column, collar, flared neck
-  lbox(-0.85, 0.85, 0, 0.25, -0.85, 0.85, LECT_DARK, lect);
-  lbox(-0.65, 0.65, 0.25, 0.4, -0.65, 0.65, LECT_DARK, lect);
-  lbox(-0.87, 0.87, 0.235, 0.25, -0.87, 0.87, 0, lect, trimM);
+  lbox(-0.85, 0.85, 0, 0.25, -0.85, 0.85, LECT_BASE, lect);
+  lbox(-0.65, 0.65, 0.25, 0.4, -0.65, 0.65, LECT_STEP, lect);
+  lbox(-0.87, 0.87, 0.225, 0.245, -0.87, 0.87, 0, lect, trimM);
   lcyl(0.42, 0.52, 2, 1.4, LECT_DARK);
-  lcyl(0.62, 0.55, 0.18, 2.45, LECT_LIGHT);
+  lcyl(0.62, 0.55, 0.18, 2.45, LECT_RIM);
   lcyl(0.8, 0.6, 0.2, 2.64, LECT_DARK); // lower and narrower so it stays under the desk
   lcyl(0.64, 0.64, 0.03, 2.56, 0, trimM);
   // tilted desk with a lip
@@ -1338,61 +1784,115 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   D.rotation.x = DESK_TILT;
   lect.add(D);
   lbox(-1.05, 1.05, -0.07, 0.07, -0.75, 0.75, LECT_LIGHT, D);
-  lbox(-1.05, 1.05, -0.07, 0.2, 0.67, 0.75, LECT_DARK, D);
-  lbox(-1.05, 1.05, -0.07, 0.22, -0.75, -0.66, LECT_DARK, D);
+  lbox(-1.05, 1.05, -0.07, 0.2, 0.67, 0.75, LECT_LIP, D);
+  lbox(-1.05, 1.05, -0.07, 0.22, -0.75, -0.66, LECT_LIP, D);
   lbox(-1, 1, 0.2, 0.215, 0.69, 0.73, 0, D, trimM);
   // open book
   const B = new THREE.Group();
-  B.position.set(0, 0.07, 0);
+  B.position.set(0, 0.07 + BOOK_LIFT, 0);
   D.add(B);
   // leather cover boards (unlit, so the court's blue light cannot turn them black), cream page edges, dark spine cord
-  const leatherSideM = keepMat(new THREE.MeshBasicMaterial({ color: 0x33281d })); // a shade lighter than the painted top, so the board reads as a thick slab
-  const spineM = keepMat(new THREE.MeshBasicMaterial({ color: 0x120d09 }));
-  const pageEdgeM = keepMat(new THREE.MeshBasicMaterial({ map: pageEdgeTexture() }));
-  const bbox = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: THREE.Material) => {
+  const leatherSideM = keepMat(new THREE.MeshBasicMaterial({ color: 0x1e232c })); // a shade lighter than the painted top, so the board reads as a thick slab
+  const spineM = keepMat(new THREE.MeshBasicMaterial({ color: 0x0b0e13 }));
+  const bbox = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: THREE.Material | THREE.Material[]) => {
     const o = new THREE.Mesh(keepGeo(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0)), m);
     o.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
     B.add(o);
     return o;
   };
-  bbox(-0.84, -0.02, 0, 0.06, -0.56, 0.56, leatherSideM);
-  bbox(0.02, 0.84, 0, 0.06, -0.56, 0.56, leatherSideM);
-  bbox(-0.03, 0.03, 0, 0.065, -0.56, 0.56, spineM);
-  bbox(-0.74, -0.02, 0.05, 0.11, -0.5, 0.5, pageEdgeM);
-  bbox(0.02, 0.74, 0.05, 0.11, -0.5, 0.5, pageEdgeM);
+  // cover boards: thin slabs resting on the desk (desk surface at y = -BOOK_LIFT in book space), a small overhang past the pages
+  const COV_X = 0.845;
+  const COV_Z = 0.52;
+  bbox(-COV_X, -0.02, -BOOK_LIFT, 0, -COV_Z, COV_Z, leatherSideM);
+  bbox(0.02, COV_X, -BOOK_LIFT, 0, -COV_Z, COV_Z, leatherSideM);
+  bbox(-0.03, 0.03, -BOOK_LIFT, 0.005, -COV_Z, COV_Z, spineM);
+
+  // the open book's anatomy: each page dips into the gutter and rises to a gentle crown near the outer edge
+  const PAGE_DIP = 0.1;
+  const PAGE_SEG = 20;
+  const SPAN = 0.7; // page width (same as PW below)
+  const pageCurve = (t: number) => -PAGE_DIP * Math.pow(1 - t, 2.2) + 0.012 * Math.sin(Math.PI * t); // t: 0 at the gutter, 1 at the outer edge
+
+  // page stack: one lofted mesh per side. Its top follows the page curve; the front and outer faces carry the page-edge
+  // lines and flare out a little toward the cover, like leaves fanning out from the spine.
+  const stackMat = keepMat(new THREE.MeshBasicMaterial({ map: pageEdgeTexture(), side: THREE.DoubleSide }));
+  const FLX = 0.06;
+  const FLZ = 0.004;
+  const stackGeo = (s: number) => {
+    const pos: number[] = [];
+    const uvs: number[] = [];
+    const idx: number[] = [];
+    const topAt = (t: number) => 0.111 + pageCurve(t);
+    const strip = (zs: number) => {
+      const b = pos.length / 3;
+      for (let i = 0; i <= PAGE_SEG; i++) {
+        const t = i / PAGE_SEG;
+        const x = s * (0.02 + t * SPAN);
+        const xb = s * (0.02 + t * SPAN + FLX * Math.pow(t, 6));
+        pos.push(x, topAt(t), zs * 0.48, xb, 0, zs * (0.48 + FLZ));
+        uvs.push(t, topAt(t) / 0.111, t, 0);
+      }
+      for (let i = 0; i < PAGE_SEG; i++) {
+        const a = b + i * 2;
+        idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      }
+    };
+    strip(1);
+    strip(-1);
+    const b = pos.length / 3; // the outer face
+    const xo = s * (0.02 + SPAN);
+    const xb = s * (0.02 + SPAN + FLX);
+    pos.push(xo, topAt(1), -0.48, xo, topAt(1), 0.48, xb, 0, -(0.48 + FLZ), xb, 0, 0.48 + FLZ);
+    uvs.push(0, 1, 1, 1, 0, 0, 1, 0);
+    idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+    const g = keepGeo(new THREE.BufferGeometry());
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    g.setIndex(idx);
+    return g;
+  };
+  B.add(new THREE.Mesh(stackGeo(-1), stackMat), new THREE.Mesh(stackGeo(1), stackMat));
   // painted leather on top of each cover board: tooled border, iron corner brackets and a clasp on the outer edge
   const coverPlane = (x: number, left: boolean) => {
     const o = new THREE.Mesh(
-      keepGeo(new THREE.PlaneGeometry(0.82, 1.12).rotateX(-Math.PI / 2)),
+      keepGeo(new THREE.PlaneGeometry(COV_X - 0.02, COV_Z * 2).rotateX(-Math.PI / 2)),
       keepMat(new THREE.MeshBasicMaterial({ map: coverTexture(left) })),
     );
-    o.position.set(x, 0.0615, 0);
+    o.position.set(x, 0.0015, 0); 
     B.add(o);
   };
-  coverPlane(-0.43, true);
-  coverPlane(0.43, false);
+  coverPlane(-(COV_X + 0.02) / 2, true);
+  coverPlane((COV_X + 0.02) / 2, false);
   // soft shadow ring where each page block sits on its cover board, and a shadow under the whole book on the desk
   const blockShadowM = keepMat(
     new THREE.MeshBasicMaterial({ map: keepTex(frameShadowTexture(440, 540, 40, 20, 360, 500, 22)), transparent: true, opacity: 0.8, depthWrite: false }),
   );
   for (const sx of [-0.38, 0.38]) {
     const o = new THREE.Mesh(keepGeo(new THREE.PlaneGeometry(0.88, 1.08).rotateX(-Math.PI / 2)), blockShadowM);
-    o.position.set(sx, 0.0625, 0);
+    o.position.set(sx, 0.0025, 0);
     o.renderOrder = 1;
     B.add(o);
   }
   const deskShadowM = keepMat(
     new THREE.MeshBasicMaterial({ map: keepTex(frameShadowTexture(800, 600, 64, 76, 672, 448, 40)), transparent: true, opacity: 0.7, depthWrite: false }),
   );
-  const deskShadow = new THREE.Mesh(keepGeo(new THREE.PlaneGeometry(2.0, 1.5).rotateX(-Math.PI / 2)), deskShadowM);
-  deskShadow.position.set(0, 0.006, 0);
+  const deskShadow = new THREE.Mesh(keepGeo(new THREE.PlaneGeometry(2.0, 1.0).rotateX(-Math.PI / 2)), deskShadowM);
+  deskShadow.position.set(0, -0.044, 0);
   deskShadow.renderOrder = 1;
   B.add(deskShadow);
 
   // ---- pages -------------------------------------------------------------------------------------------------
   const PW = 0.7;
   const PH = 0.96;
-  const pageGeo = () => keepGeo(new THREE.PlaneGeometry(PW, PH).rotateX(-Math.PI / 2));
+  const pageGeo = (side: number) => {
+    const g = keepGeo(new THREE.PlaneGeometry(PW, PH, PAGE_SEG, 1).rotateX(-Math.PI / 2));
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const t = side > 0 ? (p.getX(i) + PW / 2) / PW : (PW / 2 - p.getX(i)) / PW; // 0 at the gutter, 1 at the outer edge
+      p.setY(i, pageCurve(t));
+    }
+    return g;
+  };
   const mkInk = () => keepMat(new THREE.MeshBasicMaterial({ color: 0xffffff }));
   const mkGlow = () => keepMat(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, fog: false }));
   const leftInk = mkInk();
@@ -1400,7 +1900,7 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   const leftGlow = mkGlow();
   const rightGlow = mkGlow();
   const place = (m: THREE.Material, x: number, y: number, order = 0) => {
-    const o = new THREE.Mesh(pageGeo(), m);
+    const o = new THREE.Mesh(pageGeo(x < 0 ? -1 : 1), m);
     o.position.set(x, y, 0);
     o.renderOrder = order;
     B.add(o);
@@ -1446,7 +1946,7 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
       for (let r = 0; r < 2; r++) {
         const k = (i * 2 + r) * 3;
         fp[k] = (0.02 + u) * Math.cos(ph);
-        fp[k + 1] = 0.12 + (0.02 + u) * Math.sin(ph);
+        fp[k + 1] = 0.12 + (0.02 + u) * Math.sin(ph) + pageCurve(u / PW) * (1 - Math.sin(ph));
         fp[k + 2] = r ? 0.48 : -0.48;
       }
     }
@@ -1732,6 +2232,10 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   const light = new THREE.PointLight(0x58f0dc, LIGHT_BASE, 40, 2);
   light.position.set(0, 7, -41);
   group.add(light);
+  const WARM_BASE = 3.5;
+  const warm = new THREE.PointLight(0xff9a50, WARM_BASE, 6, 2);
+  warm.position.set(0, BOOK_Y + 1.1, -(LECT_U - 1.3));
+  group.add(warm);
 
   // ---- camera route ----------------------------------------------------------------------------------------------------
   const y0 = endPt.y;
@@ -1873,7 +2377,7 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
         camera.updateMatrixWorld();
         B.updateWorldMatrix(true, false);
         for (let i = 0; i < 4; i++) {
-          bq.set(BQX[i], 0.12, BQZ[i]).applyMatrix4(B.matrixWorld).project(camera);
+          bq.set(BQX[i], 0.1, BQZ[i]).applyMatrix4(B.matrixWorld).project(camera);
           if (bq.z < -1 || bq.z > 1) ok = false;
           quadNow[i * 2] = (bq.x * 0.5 + 0.5) * width;
           quadNow[i * 2 + 1] = (0.5 - bq.y * 0.5) * height;
@@ -1935,11 +2439,21 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
         motePos[i * 3 + 2] = moteBase[i * 4 + 1] + Math.cos(clock * 0.35 + ph * 6.28) * 0.4;
       }
       (moteGeo.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+      for (let i = 0; i < EMBERS; i++) {
+        const life = (emberBase[i * 4 + 3] + clock * emberBase[i * 4 + 2]) % 1;
+        const a = emberBase[i * 4] + clock * 0.1;
+        const r = emberBase[i * 4 + 1] * (1 + 0.25 * life);
+        emberPos[i * 3] = Math.cos(a) * r;
+        emberPos[i * 3 + 1] = 3.4 + life * 2.6;
+        emberPos[i * 3 + 2] = -LECT_U + Math.sin(a) * r * 0.8;
+      }
+      (emberGeo.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+      emberMat.opacity = 0.85 * smooth(1.2, 2.8, camera.distanceTo(bookWorld)); // fades near the end so nothing crosses the page
 
       const pulse = speaking * (0.55 + 0.3 * Math.sin(clock * 14));
       light.intensity = LIGHT_BASE * (0.92 + 0.08 * Math.sin(clock * 7.3) + 0.04 * Math.sin(clock * 13) + bookLevel * 0.25);
+      warm.intensity = WARM_BASE * (0.9 + 0.07 * Math.sin(clock * 8.1) + 0.04 * Math.sin(clock * 15.7));
       glowMat.color.copy(tealBase).multiplyScalar(0.75 + 0.12 * Math.sin(clock * 1.6) + pulse);
-      emblemMat.color.setScalar(0.55 + 0.15 * Math.sin(clock * 1.1) + pulse * 0.8);
       archHaloMat.opacity = 0.3 + 0.08 * Math.sin(clock * 1.6) + speaking * 0.25;
       shaftMat.opacity = 0.14 + 0.04 * Math.sin(clock * 0.5);
 

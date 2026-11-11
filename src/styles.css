@@ -1086,3 +1086,22 @@ section.hero .btn-secondary:hover {
 .book-ui.on-book .bk-btn:focus-visible, .book-ui.on-book .bk-ask:focus-visible { background: rgba(138, 122, 82, 0.18); outline: 2px solid #8a7a52; }
 /* ==== Chat book v9: the hidden input uses the painted field's font size ==== */
 .book-ui.on-book .bk-input { font: 14.8px Georgia, 'Times New Roman', serif; padding: 0 0 0 3px; }
+/* ==== Chat book v10: slate and teal to match the court ==== */
+.book-ui.on-book .chat-chip { color: #10141c; }
+.book-ui.on-book .chat-chip::before { color: #3a4654; }
+.book-ui.on-book .chat-chip:hover:not(:disabled) { color: #1b5953; text-decoration-color: rgba(27, 89, 83, 0.6); }
+.book-ui.on-book .book-extras::before { background: linear-gradient(90deg, transparent, rgba(52, 60, 74, 0.75), transparent); }
+.book-ui.on-book .bk-btn:focus-visible, .book-ui.on-book .bk-ask:focus-visible { background: rgba(27, 89, 133, 0.16); outline: 2px solid #2a8a80; }
+/* ==== Chat book v11: starter questions are painted on the page; the chips are invisible hit areas over them ==== */
+.book-ui.on-book .book-extras { left: 0; top: 0; bottom: auto; width: 780px; height: 520px; pointer-events: none; }
+.book-ui.on-book .book-extras::before { display: none !important; }
+.book-ui.on-book .chat-chips { position: static; margin: 0; }
+.book-ui.on-book .chat-chip {
+  position: absolute; left: 421.7px; width: 256px; height: 19.2px; margin: 0; padding: 0;
+  opacity: 0; color: transparent; background: none; border: 0; pointer-events: auto;
+}
+.book-ui.on-book .chat-chip::before { content: none; }
+.book-ui.on-book .chat-chip:nth-child(1) { top: 384.1px; }
+.book-ui.on-book .chat-chip:nth-child(2) { top: 403.3px; }
+.book-ui.on-book .chat-chip:nth-child(3) { top: 422.5px; }
+.book-ui.on-book .chat-chip:focus-visible { opacity: 1; background: rgba(27, 89, 133, 0.12); outline: 2px solid #2a8a80; }
