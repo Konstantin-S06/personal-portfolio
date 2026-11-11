@@ -8,6 +8,8 @@ answers, no model) -> guarded NL-to-SQL on a read-only connection -> existing ke
 
 Every response body has: kind ("list" | "count" | "text" | "refusal"), answer (string),
 items, suggestions, sql_query (always None). Counts and lists may add "count".
+Intent answers to open questions may add "prose": a short model-written paragraph that was validated
+(chat_prose); it is absent when the model is slow, unavailable or its output was rejected.
 """
 
 import hashlib
@@ -22,6 +24,7 @@ from chat_intents import (
     load_from_runner,
     refusal_body,
 )
+from chat_prose import PROSE_TIMEOUT_S, add_prose
 from chat_sql import MAX_QUESTION_CHARS, RateLimiter, answer_with_sql
 
 logger = logging.getLogger(__name__)
@@ -65,6 +68,12 @@ def _default_llm(messages, max_tokens, temperature):
     from ai_helper import call_hf_chat  # lazy: needs the openai package
 
     return call_hf_chat(messages, max_tokens=max_tokens, temperature=temperature)
+
+
+def _default_prose_llm(messages, max_tokens, temperature):
+    from ai_helper import call_hf_chat  # lazy: needs the openai package
+
+    return call_hf_chat(messages, max_tokens=max_tokens, temperature=temperature, timeout=PROSE_TIMEOUT_S)
 
 
 def _default_runner_factory():
@@ -116,6 +125,7 @@ def handle_chat(
     runner_factory: Optional[Callable] = None,
     fallback: Optional[Callable[[str], str]] = None,
     projects_loader: Optional[Callable] = None,
+    prose_llm: Optional[Callable] = None,
 ) -> Tuple[Dict[str, Any], int]:
     data = req.get_json(silent=True)
     if not isinstance(data, dict):
@@ -197,5 +207,8 @@ def handle_chat(
             except Exception:
                 pass
 
-    logger.info("chat path=%s intent=%s question_chars=%d", path, intent_name or "-", len(question))
+    prose_used = False
+    if path == "intent" and body is not None:
+        body, prose_used = add_prose(question, body, intent_name, prose_llm or _default_prose_llm)
+    logger.info("chat path=%s intent=%s prose=%s question_chars=%d", path, intent_name or "-", "yes" if prose_used else "no", len(question))
     return body, 200

@@ -20,10 +20,10 @@ export const FIRE_GAZE = {
 
 const FLAME_LAYERS = [
   // width, height, brightness, seed, x offset, z offset
-  { w: 1.5, h: 2.1, gain: 1.0, seed: 0.1, dx: 0.0, dz: 0.0 },
-  { w: 1.2, h: 1.7, gain: 1.3, seed: 0.5, dx: 0.1, dz: -0.05 },
-  { w: 0.9, h: 1.35, gain: 1.7, seed: 0.9, dx: -0.12, dz: 0.08 },
-  { w: 0.55, h: 0.95, gain: 2.2, seed: 0.3, dx: 0.0, dz: 0.0 },
+  { w: 1.9, h: 1.9, gain: 0.9, seed: 0.1, dx: 0.0, dz: 0.0 },
+  { w: 1.55, h: 1.55, gain: 1.0, seed: 0.5, dx: 0.12, dz: -0.05 },
+  { w: 1.2, h: 1.25, gain: 1.1, seed: 0.9, dx: -0.14, dz: 0.08 },
+  { w: 0.75, h: 0.9, gain: 1.2, seed: 0.3, dx: 0.0, dz: 0.0 },
 ];
 const EMBER_COUNT = 70;
 const STONE_COUNT = 10;
@@ -81,13 +81,13 @@ const flameFrag = /* glsl */ `
     float n = fbm(q);
     float n2 = fbm(q * 1.9 + vec2(4.0, -uTime * 0.9));
     float bend = (n - 0.5) * 0.9 * y;
-    float width = max(pow(max(1.0 - y, 0.0), 0.75) * 0.8, 0.03);
+    float width = max(pow(max(1.0 - y, 0.0), 0.55) * 0.95, 0.04);
     float dist = abs(x + bend);
-    float body = 1.0 - smoothstep(width * 0.25, width, dist);
-    float tip = 1.0 - smoothstep(0.55, 1.0, y + (n2 - 0.5) * 0.5);
-    float flame = clamp(body * tip * (0.55 + 0.7 * n), 0.0, 1.0);
-    float hot = smoothstep(0.0, 0.5, y);
-    vec3 col = mix(vec3(1.0, 0.92, 0.55), vec3(1.0, 0.42, 0.06), hot);
+    float body = 1.0 - smoothstep(width * 0.05, width, dist);
+    float tip = 1.0 - smoothstep(0.4, 1.0, y + (n2 - 0.5) * 0.5);
+    float flame = clamp(body * tip * smoothstep(0.0, 0.06, y) * (0.55 + 0.7 * n), 0.0, 1.0);
+    float hot = smoothstep(0.0, 0.6, y);
+    vec3 col = mix(vec3(1.0, 0.78, 0.35), vec3(1.0, 0.42, 0.06), hot);
     col = mix(col, vec3(0.65, 0.08, 0.02), smoothstep(0.5, 1.0, y));
     gl_FragColor = vec4(col * uGain * (0.8 + 0.4 * uFlicker), flame);
     #include <tonemapping_fragment>

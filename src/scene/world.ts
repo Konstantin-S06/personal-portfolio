@@ -995,10 +995,11 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
       const fdist = Math.max(Math.hypot(campfire.x - pos.x, campfire.z - pos.z), 0.5);
       const fpitch = Math.atan2(pos.y, fdist) - THREE.MathUtils.degToRad(FIRE_GAZE.baseDeg);
       gazeAim.set(campfire.x, pos.y - fdist * Math.tan(fpitch), campfire.z);
-      room.gaze(tThrone, gazeAim, look);
+      room.gaze(tThrone, gazeAim, look, pos);
     }
     camera.position.copy(pos);
     camera.lookAt(look);
+    if (tThrone > 0) room.projectBook(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
 
     sun.position.set(pos.x + 25, 40, pos.z + 15);
     sun.target.position.set(pos.x, 0, pos.z - 10);

@@ -44,4 +44,5 @@ export function remainingProjects(chapters: Chapter[], projects: Project[]): Pro
 }
 
 /** Pinned scroll length in vh: max(600, chapters * 100). */
-export const pinLengthVh = (chapterCount: number): number => Math.max(600, chapterCount * 100);
+// x1.24 keeps the forest pace unchanged now that WALK_END is 0.66 instead of 0.82.
+export const pinLengthVh = (chapterCount: number): number => Math.round(Math.max(600, chapterCount * 100) * 1.24);

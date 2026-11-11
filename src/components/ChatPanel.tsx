@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { API_BASE_URL as API_BASE } from '../config';
 
 const MAX_LEN = 300;
 // Keep in sync with STATIC_SUGGESTIONS in backend/chat_intents.py (a backend test checks the three are answered).
 const SUGGESTIONS = ['How many projects use Python?', 'Which projects are featured?', 'What did you build with Flask?'];
 const MAX_ITEMS = 12;
+// Logical size of the two-page sheet. The scene projects the book's page corners; this sheet is warped onto them.
+const BOOK_W = 780;
+const BOOK_H = 520;
 
 type Kind = 'list' | 'count' | 'text' | 'refusal';
 
@@ -12,29 +15,32 @@ interface ChatItem {
   title: string;
   tech: string[];
   category: string | null;
-  summary: string | null;
-  role: string | null;
   date: string | null;
   github: string | null;
   demo: string | null;
 }
 
-interface UserMsg {
-  role: 'user';
-  text: string;
-}
 interface BotMsg {
-  role: 'bot';
   kind: Kind;
   text: string;
+  /** Short model-written paragraph shown under the lead line; null when the server sent none. */
+  prose: string | null;
   items: ChatItem[];
   suggestions: string[];
 }
-type Msg = UserMsg | BotMsg;
 
-function setSpeaking(on: boolean) {
-  window.dispatchEvent(new CustomEvent('chat-speaking', { detail: on }));
+/** Mirrors the scene's "book-state" event. */
+interface BookState {
+  index: number;
+  count: number;
+  canPrev: boolean;
+  canNext: boolean;
+  turning: boolean;
+  answer: number;
 }
+
+const emit = (name: string, detail?: unknown) => window.dispatchEvent(new CustomEvent(name, { detail }));
+const setSpeaking = (on: boolean) => emit('chat-speaking', on);
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
 const safeUrl = (v: unknown): string | null => {
@@ -54,8 +60,6 @@ function parseItems(v: unknown): ChatItem[] {
       title,
       tech: Array.isArray(r.tech_stack) ? r.tech_stack.filter((t): t is string => typeof t === 'string').slice(0, 8) : [],
       category: str(r.category),
-      summary: str(r.summary),
-      role: str(r.role),
       date: str(r.date),
       github: safeUrl(r.github_url),
       demo: safeUrl(r.demo_url),
@@ -72,103 +76,154 @@ function parseReply(data: Record<string, unknown>, fallbackText: string): BotMsg
   const suggestions = Array.isArray(data.suggestions)
     ? data.suggestions.filter((s): s is string => typeof s === 'string' && s.length <= MAX_LEN).slice(0, 3)
     : [];
-  return { role: 'bot', kind, text, items: parseItems(data.items), suggestions };
+  return { kind, text, prose: str(data.prose)?.slice(0, 600) ?? null, items: parseItems(data.items), suggestions };
 }
 
-function Links({ item }: { item: ChatItem }) {
-  if (!item.github && !item.demo) return null;
-  return (
-    <span className="chat-links">
-      {item.github && (
-        <a href={item.github} target="_blank" rel="noopener noreferrer">
-          Code
-        </a>
-      )}
-      {item.demo && (
-        <a href={item.demo} target="_blank" rel="noopener noreferrer">
-          Demo
-        </a>
-      )}
-    </span>
-  );
+/** What the book page shows for an answer: the text, then one line per project. */
+const pageText = (m: BotMsg) => {
+  // The scene lays this out: first line is the lead, "- " starts a bullet, "~ " is a small grey detail line.
+  // Lead line first, then the paragraph (if any), then the rest of the text and the project lines.
+  const lines = m.text.split('\n');
+  const out = m.prose ? [lines[0], m.prose, ...lines.slice(1)] : [m.text];
+  if (m.items.length) {
+    out.push('');
+    for (const it of m.items) {
+      out.push(`- ${it.title}`);
+      const meta = [it.category, it.date].filter(Boolean).join(' · ');
+      if (meta) out.push(`~ ${meta}`);
+    }
+  }
+  return out.join('\n');
+};
+
+/** CSS matrix3d that maps the rectangle (0,0)-(w,h) onto four screen points (TL, TR, BR, BL). '' if degenerate. */
+function quadMatrix(w: number, h: number, q: number[]): string {
+  const src = [0, 0, w, 0, w, h, 0, h];
+  const A: number[][] = [];
+  for (let i = 0; i < 4; i++) {
+    const x = src[2 * i];
+    const y = src[2 * i + 1];
+    const u = q[2 * i];
+    const v = q[2 * i + 1];
+    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y, u]);
+    A.push([0, 0, 0, x, y, 1, -v * x, -v * y, v]);
+  }
+  for (let c = 0; c < 8; c++) {
+    let p = c;
+    for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+    if (Math.abs(A[p][c]) < 1e-9) return '';
+    [A[c], A[p]] = [A[p], A[c]];
+    for (let r = 0; r < 8; r++) {
+      if (r === c) continue;
+      const k = A[r][c] / A[c][c];
+      for (let j = c; j < 9; j++) A[r][j] -= k * A[c][j];
+    }
+  }
+  const s = A.map((row, i) => row[8] / row[i]);
+  if (s.some((n) => !Number.isFinite(n))) return '';
+  const [a, b, c, d, e, f, g, h2] = s;
+  return `matrix3d(${a},${d},0,${g},${b},${e},0,${h2},0,0,1,0,${c},${f},0,1)`;
 }
 
-function Rows({ items, compact }: { items: ChatItem[]; compact?: boolean }) {
-  return (
-    <ul className={`chat-rows${compact ? ' compact' : ''}`}>
-      {items.map((it, i) => {
-        const meta = [it.category, it.date].filter(Boolean).join(' · ');
-        return (
-          <li key={`${it.title}-${i}`}>
-            <span className="chat-row-title">{it.title}</span>
-            {meta && <span className="chat-row-meta">{meta}</span>}
-            <Links item={it} />
-            {!compact && it.tech.length > 0 && <span className="chat-row-tech">{it.tech.join(' · ')}</span>}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
+/**
+ * The chat as an open book. The words are painted on the 3D page textures by the scene (so they turn with the leaf);
+ * this component renders only the controls that need real DOM: the page buttons, the question field, the suggestion
+ * chips and the project links. The scene publishes the page corners ("book-screen") and this sheet is warped onto
+ * them. One question and its answer share one spread, so one question is one page turn. With no scene (flat mode)
+ * the sheet is an ordinary two-column card and the words are only in the screen-reader log below.
+ */
 export function ChatPanel({ title }: { title: string }) {
-  const [log, setLog] = useState<Msg[]>([]);
-  const [shown, setShown] = useState(0); // characters of the newest plain-text answer revealed so far
+  const [book, setBook] = useState<BookState>({ index: 0, count: 1, canPrev: false, canNext: false, turning: false, answer: -1 });
+  const [replies, setReplies] = useState<(BotMsg | null)[]>([]); // one entry per exchange, null while waiting
+  const [questions, setQuestions] = useState<string[]>([]);
+  const [onBook, setOnBook] = useState(false);
   const [busy, setBusy] = useState(false);
   const [input, setInput] = useState('');
   const timer = useRef(0);
-  const logRef = useRef<HTMLDivElement>(null);
-
-  useEffect(
-    () => () => {
-      window.clearInterval(timer.current);
-      setSpeaking(false);
-    },
-    [],
-  );
+  const focusRef = useRef(false);
+  const rootRef = useRef<HTMLElement>(null);
+  const quadRef = useRef<{ visible: boolean; quad: number[] } | null>(null);
+  const onBookRef = useRef(false);
+  const applyRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const el = logRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [log, shown]);
+    const apply = () => {
+      const el = rootRef.current;
+      const d = quadRef.current;
+      if (!el || !d) return;
+      const m = d.visible ? quadMatrix(BOOK_W, BOOK_H, d.quad) : '';
+      if (m) {
+        el.style.transform = m;
+        el.style.opacity = '';
+        el.style.pointerEvents = '';
+      } else {
+        el.style.opacity = '0';
+        el.style.pointerEvents = 'none';
+      }
+    };
+    applyRef.current = apply;
+    const onScreen = (e: Event) => {
+      const d = (e as CustomEvent<{ visible: boolean; quad: number[] }>).detail;
+      if (!d || !Array.isArray(d.quad) || d.quad.length !== 8) return;
+      quadRef.current = d;
+      if (!onBookRef.current) {
+        onBookRef.current = true;
+        setOnBook(true); // the layout effect below applies the first transform
+      } else {
+        apply();
+      }
+    };
+    const onState = (e: Event) => {
+      const d = (e as CustomEvent<Partial<BookState>>).detail;
+      if (!d) return;
+      setBook((b) => ({ ...b, ...d }));
+    };
+    window.addEventListener('book-screen', onScreen);
+    window.addEventListener('book-state', onState);
+    emit('chat-reset'); // the scene may still hold pages from an earlier mount
+    emit('book-input', { text: '', focus: false });
+    emit('book-nav', 'query');
+    return () => {
+      window.removeEventListener('book-screen', onScreen);
+      window.removeEventListener('book-state', onState);
+      applyRef.current = null;
+      window.clearTimeout(timer.current);
+      setSpeaking(false);
+    };
+  }, []);
 
-  const finish = () => {
-    window.clearInterval(timer.current);
-    setBusy(false);
-    setSpeaking(false);
-  };
+  useLayoutEffect(() => {
+    if (onBook) applyRef.current?.();
+  }, [onBook]);
 
-  // The typewriter is for plain text only. Lists, counts and refusals appear at once.
-  const reveal = (msg: BotMsg) => {
-    setLog((l) => [...l, msg]);
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (msg.kind !== 'text' || reduce) {
-      setShown(msg.text.length);
-      finish();
-      return;
-    }
-    let n = 0;
-    setShown(0);
-    timer.current = window.setInterval(() => {
-      n += 2;
-      setShown(n);
-      if (n >= msg.text.length) finish();
-    }, 20);
+  // The scene paints the field (typed text and caret) onto the page; the real input is an invisible hit area.
+  const syncInput = (text: string) => emit('book-input', { text, focus: focusRef.current });
+
+  const finish = (ms: number) => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      setBusy(false);
+      setSpeaking(false);
+    }, ms);
   };
 
   const ask = async (raw: string) => {
     const question = raw.trim().slice(0, MAX_LEN);
     if (!question || busy) return;
     setInput('');
-    setLog((l) => [...l, { role: 'user', text: question }]);
+    syncInput('');
+    setQuestions((q) => [...q, question]);
+    setReplies((r) => [...r, null]);
+    const slot = replies.length;
     setBusy(true);
     setSpeaking(true);
+    emit('chat-message', { role: 'user', text: question }); // the scene adds a spread with a "Thinking..." answer
     const ctl = new AbortController();
     const to = window.setTimeout(() => ctl.abort(), 25000);
     let msg: BotMsg = {
-      role: 'bot',
       kind: 'text',
       text: "I couldn't reach the server just now. Try again in a moment.",
+      prose: null,
       items: [],
       suggestions: [],
     };
@@ -186,7 +241,11 @@ export function ChatPanel({ title }: { title: string }) {
     } finally {
       window.clearTimeout(to);
     }
-    reveal(msg);
+    setReplies((r) => r.map((x, i) => (i === slot ? msg : x)));
+    const text = pageText(msg);
+    emit('chat-message', { role: 'assistant', text }); // fills the same spread: no second page turn
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    finish(reduce ? 0 : Math.min(text.length * 10 + 300, 6000)); // the scene writes about 100 characters a second
   };
 
   const onSubmit = (e: FormEvent) => {
@@ -194,102 +253,90 @@ export function ChatPanel({ title }: { title: string }) {
     void ask(input);
   };
 
-  const last = log.length - 1;
-  const waiting = busy && last >= 0 && log[last].role === 'user';
-
-  const renderBot = (m: BotMsg, i: number) => {
-    const typing = i === last && m.kind === 'text';
-    const done = !typing || shown >= m.text.length;
-    if (m.kind === 'text') {
-      return (
-        <div className="chat-a" key={i}>
-          <p className="chat-text">{typing ? m.text.slice(0, shown) : m.text}</p>
-          {done && m.items.length > 0 && <Rows items={m.items} compact />}
-          {done && m.suggestions.length > 0 && <Chips list={m.suggestions} />}
-        </div>
-      );
-    }
-    if (m.kind === 'count') {
-      return (
-        <div className="chat-a chat-count" key={i}>
-          <p className="chat-big">{m.text}</p>
-          {m.items.length > 0 && <Rows items={m.items} compact />}
-        </div>
-      );
-    }
-    if (m.kind === 'list') {
-      return (
-        <div className="chat-a chat-list" key={i}>
-          <p className="chat-lead">{m.text}</p>
-          <Rows items={m.items} />
-        </div>
-      );
-    }
-    return (
-      <div className="chat-a chat-refusal" key={i}>
-        <p className="chat-text">{m.text}</p>
-        <Chips list={m.suggestions.length ? m.suggestions : SUGGESTIONS} />
-      </div>
-    );
-  };
-
-  function Chips({ list }: { list: string[] }) {
-    return (
-      <div className="chat-chips inline">
-        {list.map((s) => (
-          <button type="button" className="chat-chip" key={s} onClick={() => void ask(s)} disabled={busy}>
-            {s}
-          </button>
-        ))}
-      </div>
-    );
-  }
+  // Extras for the spread on screen: chips and project links belong to the answer on the right page.
+  const msg = book.answer >= 0 ? replies[book.answer] ?? null : null;
+  const chipList = book.answer < 0 ? SUGGESTIONS : msg ? (msg.suggestions.length ? msg.suggestions : msg.kind === 'refusal' ? SUGGESTIONS : []) : [];
+  const linked = msg ? msg.items.filter((it) => it.github || it.demo).slice(0, 4) : [];
+  const hide = book.turning ? ' hidden' : '';
 
   return (
-    <div className="container">
-      <section className="chat-card" aria-label={title}>
-        <div className="chat-inner">
-          <header className="chat-head">
-            <h2>{title}</h2>
-            <span className={`chat-status${busy ? ' on' : ''}`} aria-hidden="true" />
-          </header>
-          <div className="chat-log" ref={logRef} aria-live="polite">
-            {log.length === 0 && <p className="chat-hint">Ask about my projects, the tech I use, or my experience.</p>}
-            {log.map((m, i) =>
-              m.role === 'user' ? (
-                <p className="chat-q" key={i}>
-                  {m.text}
-                </p>
-              ) : (
-                renderBot(m, i)
-              ),
-            )}
-            {waiting && <p className="chat-a chat-wait">Thinking…</p>}
-          </div>
-          {log.length === 0 && (
+    <section className={`book-ui${onBook ? ' on-book' : ''}${book.turning ? ' turning' : ''}`} ref={rootRef} aria-label={title}>
+      <div className="book-page book-left">
+        <div className="bk-row">
+          <button type="button" className="bk-btn bk-prev" aria-label="Previous page" onClick={() => emit('book-nav', 'prev')} aria-disabled={!book.canPrev}>
+            ‹ Page
+          </button>
+          <button type="button" className="bk-btn bk-next" aria-label="Next page" onClick={() => emit('book-nav', 'next')} aria-disabled={!book.canNext}>
+            Page ›
+          </button>
+        </div>
+      </div>
+      <div className="book-page book-right">
+        <div className={`book-extras${hide}`}>
+          {linked.length > 0 && (
+            <div className="book-links">
+              {linked.map((it, i) => (
+                <span key={`${it.title}-${i}`}>
+                  {it.title}:{' '}
+                  {it.github && (
+                    <a href={it.github} target="_blank" rel="noopener noreferrer">
+                      Code
+                    </a>
+                  )}
+                  {it.github && it.demo && ' · '}
+                  {it.demo && (
+                    <a href={it.demo} target="_blank" rel="noopener noreferrer">
+                      Demo
+                    </a>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+          {chipList.length > 0 && (
             <div className="chat-chips">
-              {SUGGESTIONS.map((s) => (
+              {chipList.map((s) => (
                 <button type="button" className="chat-chip" key={s} onClick={() => void ask(s)} disabled={busy}>
                   {s}
                 </button>
               ))}
             </div>
           )}
-          <form className="chat-form" onSubmit={onSubmit}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              maxLength={MAX_LEN}
-              placeholder="Type a question"
-              aria-label="Your question"
-              disabled={busy}
-            />
-            <button type="submit" className="chat-send" disabled={busy || !input.trim()}>
-              Ask
-            </button>
-          </form>
         </div>
-      </section>
-    </div>
+        <form className="bk-row" onSubmit={onSubmit}>
+          <input
+            className="bk-input"
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              syncInput(e.target.value);
+            }}
+            onFocus={() => {
+              focusRef.current = true;
+              syncInput(input);
+            }}
+            onBlur={() => {
+              focusRef.current = false;
+              syncInput(input);
+            }}
+            maxLength={MAX_LEN}
+            placeholder="Type a question"
+            aria-label="Your question"
+            disabled={busy}
+          />
+          <button type="submit" className="bk-ask" aria-label="Ask" disabled={busy || !input.trim()}>
+            Ask
+          </button>
+        </form>
+      </div>
+      <div className="sr-only" role="log" aria-live="polite">
+        {questions.map((q, i) => (
+          <div key={i}>
+            <p>You: {q}</p>
+            <p>Reply: {replies[i] ? pageText(replies[i]!) : 'Thinking…'}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
