@@ -1055,3 +1055,34 @@ section.hero .btn-secondary:hover {
 .book-ui.on-book.turning .bk-btn { pointer-events: auto; }
 .book-ui.on-book .book-extras { left: 421px; width: 337px; bottom: 68px; }
 .book-ui.on-book .chat-chip { font-size: 12px; padding: 3px 7px; }
+
+/* ==== Chat book v5: paper, ink and an oxblood seal; hit areas unchanged (apply_book_patch7.py) ==== */
+.book-ui.on-book .bk-btn:focus-visible, .book-ui.on-book .bk-ask:focus-visible { background: rgba(122, 46, 46, 0.14); outline: 2px solid #7a2e2e; }
+.book-ui.on-book .chat-chip { font: italic 12px/1.25 Georgia, 'Times New Roman', serif; color: #2b2119; background: rgba(255, 250, 235, 0.35); border: 1px solid rgba(122, 102, 80, 0.55); border-radius: 12px; padding: 3px 9px; }
+.book-ui.on-book .chat-chip:hover:not(:disabled) { background: rgba(122, 46, 46, 0.1); }
+.book-ui.on-book .book-links { color: #2b2119; font-family: Georgia, 'Times New Roman', serif; font-style: italic; }
+.book-ui.on-book .book-links a { color: #7a2e2e; }
+
+/* ==== Chat book v6: suggestions as numbered choices under a thin rule (apply_book_patch8.py) ==== */
+.book-ui.on-book .chat-chips { counter-reset: bk; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; gap: 3px; }
+.book-ui.on-book .chat-chip { counter-increment: bk; border: 0; border-radius: 0; background: none; padding: 1px 0; text-align: left; font: italic 13px/1.3 Georgia, 'Times New Roman', serif; color: #33241a; }
+.book-ui.on-book .chat-chip::before { content: counter(bk) '. '; font-style: normal; color: #7d6347; }
+.book-ui.on-book .chat-chip:hover:not(:disabled) { background: none; color: #5a2418; text-decoration: underline; text-decoration-color: rgba(90, 36, 24, 0.5); }
+.book-ui.on-book .book-extras::before { content: ''; display: none; height: 1px; margin-bottom: 6px; background: linear-gradient(90deg, transparent, rgba(125, 99, 71, 0.7), transparent); }
+.book-ui.on-book .book-extras:has(.chat-chip)::before, .book-ui.on-book .book-extras:has(.book-links)::before { display: block; }
+.book-ui.on-book .book-links { color: #33241a; }
+.book-ui.on-book .book-links a { color: #35552b; }
+
+/* ==== Chat book v7: ashen pages, ember accents (apply_book_patch9.py) ==== */
+.book-ui.on-book .bk-btn:focus-visible, .book-ui.on-book .bk-ask:focus-visible { background: rgba(200, 103, 31, 0.16); outline: 2px solid #c8671f; }
+.book-ui.on-book .chat-chip { color: #1f1812; }
+.book-ui.on-book .chat-chip::before { color: #4d402f; }
+.book-ui.on-book .chat-chip:hover:not(:disabled) { color: #6e2a17; text-decoration-color: rgba(110, 42, 23, 0.6); }
+.book-ui.on-book .book-extras::before { background: linear-gradient(90deg, transparent, rgba(77, 64, 47, 0.75), transparent); }
+.book-ui.on-book .book-links { color: #1f1812; }
+.book-ui.on-book .book-links a { color: #6e2a17; }
+
+/* ==== Chat book v8: iron Ask plate, muted gold focus ring (apply_book_patch10.py) ==== */
+.book-ui.on-book .bk-btn:focus-visible, .book-ui.on-book .bk-ask:focus-visible { background: rgba(138, 122, 82, 0.18); outline: 2px solid #8a7a52; }
+/* ==== Chat book v9: the hidden input uses the painted field's font size ==== */
+.book-ui.on-book .bk-input { font: 14.8px Georgia, 'Times New Roman', serif; padding: 0 0 0 3px; }

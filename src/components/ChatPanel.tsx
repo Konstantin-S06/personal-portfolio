@@ -81,20 +81,30 @@ function parseReply(data: Record<string, unknown>, fallbackText: string): BotMsg
 
 /** What the book page shows for an answer: the text, then one line per project. */
 const pageText = (m: BotMsg) => {
-  // The scene lays this out: first line is the lead, "- " starts a bullet, "~ " is a small grey detail line.
-  // Lead line first, then the paragraph (if any), then the rest of the text and the project lines.
+  // The scene lays this out: "^ " is a bold heading line, "- " starts a bullet, "~ " is a small detail line.
+  // With a paragraph: paragraph first, then a heading, then the project list (a single project card is not repeated).
   const lines = m.text.split('\n');
-  const out = m.prose ? [lines[0], m.prose, ...lines.slice(1)] : [m.text];
-  if (m.items.length) {
-    out.push('');
-    for (const it of m.items) {
+  const out: string[] = [];
+  if (m.prose) {
+    if (m.items.length > 1) out.push(m.prose, '', `^ ${lines[0]}`, ...lines.slice(1));
+    else out.push(`^ ${lines[0]}`, m.prose, '', ...lines.slice(1));
+  } else {
+    out.push(m.text);
+  }
+  const listed = m.prose && m.items.length === 1 ? [] : m.items;
+  if (listed.length) {
+    if (!m.prose) out.push('');
+    for (const it of listed) {
       out.push(`- ${it.title}`);
-      const meta = [it.category, it.date].filter(Boolean).join(' · ');
+      const meta = [it.category, it.date].filter(Boolean).join(' \u00b7 ');
       if (meta) out.push(`~ ${meta}`);
     }
   }
   return out.join('\n');
 };
+
+/** The same text without the layout markers, for the screen-reader log. */
+const readable = (m: BotMsg) => pageText(m).replace(/^[\^~-] /gm, '');
 
 /** CSS matrix3d that maps the rectangle (0,0)-(w,h) onto four screen points (TL, TR, BR, BL). '' if degenerate. */
 function quadMatrix(w: number, h: number, q: number[]): string {
@@ -141,6 +151,8 @@ export function ChatPanel({ title }: { title: string }) {
   const [input, setInput] = useState('');
   const timer = useRef(0);
   const focusRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const refocus = useRef(false);
   const rootRef = useRef<HTMLElement>(null);
   const quadRef = useRef<{ visible: boolean; quad: number[] } | null>(null);
   const onBookRef = useRef(false);
@@ -195,9 +207,23 @@ export function ChatPanel({ title }: { title: string }) {
   useLayoutEffect(() => {
     if (onBook) applyRef.current?.();
   }, [onBook]);
+  useEffect(() => {
+    if (!busy && refocus.current) {
+      refocus.current = false;
+      inputRef.current?.focus();
+    }
+  }, [busy]);
 
   // The scene paints the field (typed text and caret) onto the page; the real input is an invisible hit area.
-  const syncInput = (text: string) => emit('book-input', { text, focus: focusRef.current });
+  const syncInput = (text: string) => {
+    const el = inputRef.current;
+    const caret = el && el.value === text && el.selectionStart !== null ? el.selectionStart : text.length;
+    emit('book-input', { text, focus: focusRef.current, caret });
+  };
+  const syncCaret = () => {
+    const el = inputRef.current;
+    if (el) syncInput(el.value);
+  };
 
   const finish = (ms: number) => {
     window.clearTimeout(timer.current);
@@ -210,6 +236,8 @@ export function ChatPanel({ title }: { title: string }) {
   const ask = async (raw: string) => {
     const question = raw.trim().slice(0, MAX_LEN);
     if (!question || busy) return;
+    refocus.current = focusRef.current; // the field is disabled while waiting, which drops focus
+    focusRef.current = false;
     setInput('');
     syncInput('');
     setQuestions((q) => [...q, question]);
@@ -306,6 +334,11 @@ export function ChatPanel({ title }: { title: string }) {
         <form className="bk-row" onSubmit={onSubmit}>
           <input
             className="bk-input"
+            ref={inputRef}
+            onSelect={syncCaret}
+            onKeyDown={() => window.requestAnimationFrame(syncCaret)}
+            onKeyUp={syncCaret}
+            onClick={syncCaret}
             value={input}
             onChange={(e) => {
               setInput(e.target.value);
@@ -333,7 +366,7 @@ export function ChatPanel({ title }: { title: string }) {
         {questions.map((q, i) => (
           <div key={i}>
             <p>You: {q}</p>
-            <p>Reply: {replies[i] ? pageText(replies[i]!) : 'Thinking…'}</p>
+            <p>Reply: {replies[i] ? readable(replies[i]!) : 'Thinking…'}</p>
           </div>
         ))}
       </div>

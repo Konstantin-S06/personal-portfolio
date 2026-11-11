@@ -55,8 +55,9 @@ const LINES_PER_PAGE = 17; // the foot of each page is left free for the input, 
 const FONT_BODY = '21px Georgia, "Times New Roman", serif';
 const FONT_USER = 'italic 21px Georgia, "Times New Roman", serif';
 const FONT_LEAD = 'bold 21px Georgia, "Times New Roman", serif';
-const FONT_META = '16px system-ui, sans-serif';
+const FONT_META = 'italic 16px Georgia, "Times New Roman", serif';
 const BULLET_IN = 20; // bullet text is indented this far
+const PARA_INDENT = 22; // first line of a long paragraph
 // Line prefixes (control characters) mark a line's style: 1 lead, 2 bullet start, 3 bullet continuation, 4 detail.
 
 const smooth = (a: number, b: number, x: number) => {
@@ -299,6 +300,7 @@ function layoutAnswer(text: string, W: number): string[] {
   const out: string[] = [];
   const paras = text.split('\n');
   const lead = paras.some((q) => q.startsWith('- '));
+  const explicit = paras.some((q) => q.startsWith('^ '));
   let first = true;
   for (const para of paras) {
     if (!para.trim()) {
@@ -309,8 +311,15 @@ function layoutAnswer(text: string, W: number): string[] {
       wrapText(para.slice(2), FONT_BODY, W - BULLET_IN).forEach((l, i) => out.push((i ? '\x03' : '\x02') + l));
     } else if (para.startsWith('~ ')) {
       wrapText(para.slice(2), FONT_META, W - BULLET_IN).forEach((l) => out.push('\x04' + l));
-    } else if (first && lead) {
+    } else if (para.startsWith('^ ')) {
+      wrapText(para.slice(2), FONT_LEAD, W).forEach((l) => out.push('\x01' + l));
+    } else if (first && lead && !explicit) {
       wrapText(para, FONT_LEAD, W).forEach((l) => out.push('\x01' + l));
+    } else if (para.length > 80) {
+      const flat = para.split(/\s+/).filter(Boolean).join(' ');
+      const head = wrapText(flat, FONT_BODY, W - PARA_INDENT)[0] ?? '';
+      out.push('\x05' + head);
+      out.push(...wrapText(flat.slice(head.length).trim(), FONT_BODY, W));
     } else {
       out.push(...wrapText(para, FONT_BODY, W));
     }
@@ -329,66 +338,469 @@ const cleanText = (t: string) =>
     .trim();
 
 /** What is typed in the question field. Painted on the right-hand page; the real input is an invisible hit area. */
-const inputState = { text: '', focus: false };
+const inputState = { text: '', focus: false, caret: 0, blink: true };
 
 const FOOT_M = 28;
 /** Which Page buttons can be used on the spread on screen; unusable ones are painted dimmed. */
 const navState = { prev: false, next: false };
 
-/** Footer of every page: left pages carry the two page buttons, right pages the question field and Ask button. */
+const PAPER_ASH = '#b8aa85';
+const INK = '#17110c';
+const INK_SOFT = '#41352a';
+const INK_RED = '#6e2a17';
+const SERIF = 'Georgia, "Times New Roman", serif';
+
+function diamond(g: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  g.beginPath();
+  g.moveTo(x, y - r);
+  g.lineTo(x + r, y);
+  g.lineTo(x, y + r);
+  g.lineTo(x - r, y);
+  g.closePath();
+  g.fill();
+}
+
+function roundedRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+/** Text with extra letter spacing (canvas letterSpacing is not available everywhere). */
+function spaced(g: CanvasRenderingContext2D, text: string, x: number, y: number, gap: number, align: CanvasTextAlign = 'left') {
+  let w = -gap;
+  for (const ch of text) w += g.measureText(ch).width + gap;
+  let cx = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+  const prev = g.textAlign;
+  g.textAlign = 'left';
+  for (const ch of text) {
+    g.fillText(ch, cx, y);
+    cx += g.measureText(ch).width + gap;
+  }
+  g.textAlign = prev;
+}
+
+/** A hairline with a small diamond ornament in the middle. */
+function ornamentRule(g: CanvasRenderingContext2D, x0: number, x1: number, y: number) {
+  const mid = (x0 + x1) / 2;
+  g.save();
+  g.fillStyle = INK_SOFT;
+  g.globalAlpha = 0.6;
+  g.fillRect(x0, y, mid - 22 - x0, 1.2);
+  g.fillRect(mid + 22, y, x1 - mid - 22, 1.2);
+  g.globalAlpha = 0.9;
+  diamond(g, mid, y + 0.6, 4.5);
+  diamond(g, mid - 12, y + 0.6, 2.2);
+  diamond(g, mid + 12, y + 0.6, 2.2);
+  g.restore();
+}
+
+// --- ashen, scorched parchment, painted once per side and cached -------------------------------------------------------
+const paperCache: Record<string, HTMLCanvasElement> = {};
+function paperCanvas(rightPage: boolean): HTMLCanvasElement {
+  const key = rightPage ? 'R' : 'L';
+  const hit = paperCache[key];
+  if (hit) return hit;
+  const W = PAGE_W_PX;
+  const H = PAGE_H_PX;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d')!;
+  const rnd = rng(rightPage ? 7 : 13);
+  g.fillStyle = PAPER_ASH;
+  g.fillRect(0, 0, W, H);
+  const blot = (x: number, y: number, r: number, rgb: string, a: number) => {
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(${rgb},${a})`);
+    gr.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = gr;
+    g.fillRect(x - r, y - r, 2 * r, 2 * r);
+  };
+  for (let i = 0; i < 36; i++) {
+    const x = rnd() * W;
+    const y = rnd() * H;
+    const r = 40 + rnd() * 130;
+    const k = rnd();
+    if (k < 0.45) blot(x, y, r, '70,48,22', 0.06 + rnd() * 0.09); // old stain
+    else if (k < 0.8) blot(x, y, r, '120,118,108', 0.07 + rnd() * 0.08); // ash
+    else blot(x, y, r * 0.7, '205,192,160', 0.08 + rnd() * 0.08); // faded patch
+  }
+  g.lineWidth = 1;
+  for (let i = 0; i < 700; i++) {
+    const x = rnd() * W;
+    const y = rnd() * H;
+    const a = rnd() * Math.PI;
+    const l = 3 + rnd() * 9;
+    g.strokeStyle = `rgba(60,42,22,${0.05 + rnd() * 0.08})`;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+    g.stroke();
+  }
+  for (let i = 0; i < 300; i++) {
+    g.fillStyle = `rgba(40,26,12,${0.1 + rnd() * 0.16})`;
+    g.beginPath();
+    g.arc(rnd() * W, rnd() * H, 0.5 + rnd() * 1, 0, Math.PI * 2);
+    g.fill();
+  }
+  // a thin singed border only: the text area, the running heads and the footer all stay on clean parchment
+  const burn = (x0: number, y0: number, x1: number, y1: number, rx: number, ry: number, rw: number, rh: number, a: number) => {
+    const gr = g.createLinearGradient(x0, y0, x1, y1);
+    gr.addColorStop(0, `rgba(28,16,7,${a})`);
+    gr.addColorStop(1, 'rgba(28,16,7,0)');
+    g.fillStyle = gr;
+    g.fillRect(rx, ry, rw, rh);
+  };
+  burn(0, 0, 0, 22, 0, 0, W, 22, 0.5);
+  burn(0, H, 0, H - 22, 0, H - 22, W, 22, 0.5);
+  burn(0, 0, 22, 0, 0, 0, 22, H, 0.45);
+  burn(W, 0, W - 22, 0, W - 22, 0, 22, H, 0.45);
+  // small ragged scorch marks hugging the edges
+  for (let i = 0; i < 22; i++) {
+    const side = Math.floor(rnd() * 4);
+    const t = rnd();
+    const x = side === 0 ? t * W : side === 1 ? W : side === 2 ? t * W : 0;
+    const y = side === 0 ? 0 : side === 1 ? t * H : side === 2 ? H : t * H;
+    blot(x, y, 10 + rnd() * 20, '22,12,5', 0.3 + rnd() * 0.25);
+  }
+  for (const [x, y] of [[0, 0], [W, 0], [0, H], [W, H]]) blot(x, y, 52, '18,9,3', 0.5);
+  // the gutter side darkens a little toward the spine (kept narrow so the first letters of each line stay clear)
+  if (rightPage) burn(0, 0, 36, 0, 0, 0, 36, H, 0.4);
+  else burn(W, 0, W - 36, 0, W - 36, 0, 36, H, 0.4);
+    // heavy vignette: the edges darken and brown, the middle stays clean for the text
+    {
+      const vg = g.createRadialGradient(W / 2, H / 2, H * 0.34, W / 2, H / 2, H * 0.74);
+      vg.addColorStop(0, 'rgba(34,20,8,0)');
+      vg.addColorStop(1, 'rgba(34,20,8,0.5)');
+      g.fillStyle = vg;
+      g.fillRect(0, 0, W, H);
+    }
+    g.lineWidth = 1;
+    for (let i = 0; i < 5; i++) { // old fold creases
+      const x = rnd() * W;
+      const y = rnd() * H;
+      g.strokeStyle = `rgba(40,28,14,${0.07 + rnd() * 0.07})`;
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x + (rnd() - 0.5) * 220, y + (rnd() - 0.5) * 260);
+      g.stroke();
+    }
+    for (let i = 0; i < 900; i++) { // soot and ash flecks
+      g.fillStyle = rnd() < 0.5 ? `rgba(20,12,6,${0.08 + rnd() * 0.14})` : `rgba(140,134,120,${0.06 + rnd() * 0.1})`;
+      g.fillRect(rnd() * W, rnd() * H, 0.6 + rnd() * 1.4, 0.6 + rnd() * 1.4);
+    }
+  paperCache[key] = c;
+  return c;
+}
+
+// --- page-block edge (striped aged paper) and soft contact shadows for the book ------------------------------------------
+let pageEdgeTex: THREE.CanvasTexture | null = null;
+function pageEdgeTexture(): THREE.CanvasTexture {
+  if (pageEdgeTex) return pageEdgeTex;
+  const c = document.createElement('canvas');
+  c.width = 16;
+  c.height = 64;
+  const g = c.getContext('2d')!;
+  const rnd = rng(11);
+  for (let y = 0; y < 64; y++) {
+    const v = Math.round(86 + (0.5 + rnd() * 0.5) * 40);
+    g.fillStyle = `rgb(${v + 14},${v + 2},${Math.round(v * 0.72)})`;
+    g.fillRect(0, y, 16, 1);
+  }
+  g.fillStyle = 'rgba(0,0,0,0.4)';
+  g.fillRect(0, 0, 16, 3);
+  g.fillRect(0, 61, 16, 3);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  pageEdgeTex = t;
+  return t;
+}
+
+/** A soft dark ring around a rectangular footprint (the footprint itself stays clear). Used as a contact shadow. */
+function frameShadowTexture(w: number, h: number, x: number, y: number, iw: number, ih: number, blur: number): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d')!;
+  g.shadowColor = 'rgba(0,0,0,0.95)';
+  g.shadowBlur = blur;
+  g.fillStyle = '#000';
+  g.fillRect(x, y, iw, ih);
+  g.shadowColor = 'transparent';
+  g.shadowBlur = 0;
+  g.globalCompositeOperation = 'destination-out';
+  g.fillRect(x, y, iw, ih);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// --- the cover (top face of each cover board): worn black leather, tarnished iron brackets and a clasp ----------------
+const coverCache: Record<string, THREE.CanvasTexture> = {};
+function coverTexture(left: boolean): THREE.CanvasTexture {
+  const key = left ? 'L' : 'R';
+  const hit = coverCache[key];
+  if (hit) return hit;
+  const W = 512;
+  const H = 724;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d')!;
+  const rnd = rng(left ? 3 : 5);
+  g.save();
+  if (!left) {
+    g.translate(W, 0);
+    g.scale(-1, 1); // painted with the outer edge at x = 0, mirrored for the right cover
+  }
+  g.fillStyle = '#15100c';
+  g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 2600; i++) {
+    g.fillStyle = rnd() < 0.55 ? `rgba(0,0,0,${0.1 + rnd() * 0.15})` : `rgba(95,75,52,${0.04 + rnd() * 0.08})`;
+    g.fillRect(rnd() * W, rnd() * H, 1 + rnd() * 2.5, 1 + rnd() * 2.5);
+  }
+  const wear = (x0: number, y0: number, x1: number, y1: number, rx: number, ry: number, rw: number, rh: number) => {
+    const gr = g.createLinearGradient(x0, y0, x1, y1);
+    gr.addColorStop(0, 'rgba(110,90,68,0.3)');
+    gr.addColorStop(1, 'rgba(110,90,68,0)');
+    g.fillStyle = gr;
+    g.fillRect(rx, ry, rw, rh);
+  };
+  wear(0, 0, 70, 0, 0, 0, 70, H);
+  wear(0, 0, 0, 60, 0, 0, W, 60);
+  wear(0, H, 0, H - 60, 0, H - 60, W, 60);
+  g.strokeStyle = 'rgba(120,100,75,0.35)';
+  g.lineWidth = 2;
+  g.strokeRect(14, 14, W - 28, H - 28);
+  g.strokeStyle = 'rgba(0,0,0,0.6)';
+  g.lineWidth = 1.5;
+  g.strokeRect(22, 22, W - 44, H - 44);
+
+  const ironGrad = (y0: number, y1: number) => {
+    const b = g.createLinearGradient(0, y0, 60, y1);
+    b.addColorStop(0, '#6a675f');
+    b.addColorStop(0.5, '#403e38');
+    b.addColorStop(1, '#201f1b');
+    return b;
+  };
+  const rivet = (x: number, y: number) => {
+    g.fillStyle = '#0d0b09';
+    g.beginPath();
+    g.arc(x, y, 6, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#8d897e';
+    g.beginPath();
+    g.arc(x - 1, y - 1, 3.4, 0, Math.PI * 2);
+    g.fill();
+  };
+  const rust = (x0: number, y0: number, w: number, h: number) => {
+    for (let i = 0; i < 40; i++) {
+      g.fillStyle = `rgba(120,58,24,${0.12 + rnd() * 0.25})`;
+      g.beginPath();
+      g.arc(x0 + rnd() * w, y0 + rnd() * h, 1 + rnd() * 2.6, 0, Math.PI * 2);
+      g.fill();
+    }
+  };
+  const bracket = () => {
+    g.fillStyle = ironGrad(0, 60);
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(150, 0);
+    g.lineTo(150, 36);
+    g.lineTo(46, 36);
+    g.lineTo(46, 150);
+    g.lineTo(0, 150);
+    g.closePath();
+    g.fill();
+    g.strokeStyle = 'rgba(0,0,0,0.85)';
+    g.lineWidth = 2;
+    g.stroke();
+    rust(0, 0, 150, 36);
+    rust(0, 36, 46, 114);
+    rivet(22, 20);
+    rivet(104, 18);
+    rivet(22, 104);
+  };
+  bracket();
+  g.save();
+  g.translate(0, H);
+  g.scale(1, -1);
+  bracket();
+  g.restore();
+
+  const cy = H / 2;
+  g.fillStyle = ironGrad(cy - 80, cy + 80);
+  roundedRect(g, 4, cy - 80, 52, 160, 10);
+  g.fill();
+  g.strokeStyle = 'rgba(0,0,0,0.85)';
+  g.lineWidth = 2;
+  g.stroke();
+  rust(4, cy - 80, 52, 160);
+  rivet(30, cy - 62);
+  rivet(30, cy + 62);
+  const boss = g.createRadialGradient(28, cy - 3, 2, 30, cy, 22);
+  boss.addColorStop(0, '#7d796f');
+  boss.addColorStop(1, '#25231f');
+  g.fillStyle = boss;
+  g.beginPath();
+  g.arc(30, cy, 22, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+  const ember = g.createRadialGradient(30, cy, 1, 30, cy, 11);
+  ember.addColorStop(0, '#e0883a');
+  ember.addColorStop(0.55, '#8c3412');
+  ember.addColorStop(1, '#3a1208');
+  g.fillStyle = ember;
+  g.beginPath();
+  g.arc(30, cy, 10, 0, Math.PI * 2);
+  g.fill();
+    // ash, soot and charring so the cover ages like the pages
+    for (let i = 0; i < 30; i++) {
+      const x = rnd() * W;
+      const y = rnd() * H;
+      const r = 30 + rnd() * 90;
+      const gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, rnd() < 0.6 ? 'rgba(135,130,116,0.17)' : 'rgba(18,9,3,0.3)');
+      gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr;
+      g.fillRect(x - r, y - r, 2 * r, 2 * r);
+    }
+    for (let i = 0; i < 600; i++) {
+      g.fillStyle = `rgba(150,145,128,${0.03 + rnd() * 0.08})`;
+      g.fillRect(rnd() * W, rnd() * H, 1, 1 + rnd() * 2.5);
+    }
+    g.lineWidth = 1;
+    for (let i = 0; i < 14; i++) { // fine leather cracks
+      let x = rnd() * W;
+      let y = rnd() * H;
+      g.strokeStyle = `rgba(0,0,0,${0.25 + rnd() * 0.25})`;
+      g.beginPath();
+      g.moveTo(x, y);
+      for (let j = 0; j < 5; j++) {
+        x += (rnd() - 0.5) * 26;
+        y += (rnd() - 0.2) * 22;
+        g.lineTo(x, y);
+      }
+      g.stroke();
+    }
+    for (let i = 0; i < 34; i++) { // charred rim
+      const side = Math.floor(rnd() * 4);
+      const t = rnd();
+      const x = side === 0 ? t * W : side === 1 ? W : side === 2 ? t * W : 0;
+      const y = side === 0 ? 0 : side === 1 ? t * H : side === 2 ? H : t * H;
+      const r = 14 + rnd() * 30;
+      const gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, `rgba(8,4,1,${0.45 + rnd() * 0.3})`);
+      gr.addColorStop(1, 'rgba(8,4,1,0)');
+      g.fillStyle = gr;
+      g.fillRect(x - r, y - r, 2 * r, 2 * r);
+    }
+  g.restore();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  coverCache[key] = t;
+  return t;
+}
+
+/** Footer of every page: left pages carry Prev / Next and a folio, right pages the question line and the Ask seal. */
 function drawFooter(g: CanvasRenderingContext2D, p: Page) {
   const W = PAGE_W_PX;
   const M = FOOT_M;
-  const ink = '#1c1f36';
   const rightPage = (p.num - 1) % 2 === 0;
   g.save();
   g.textBaseline = 'alphabetic';
   if (p.more && p.reveal === Infinity) {
-    g.fillStyle = '#4b5070';
-    g.font = 'italic 15px Georgia, "Times New Roman", serif';
+    g.fillStyle = INK_SOFT;
+    g.font = `italic 15px ${SERIF}`;
     g.textAlign = 'right';
     g.fillText(rightPage ? 'continued on the next page \u203a' : 'continued on the facing page \u203a', W - M, 629);
   }
-  g.globalAlpha = 0.35;
-  g.fillStyle = ink;
-  g.fillRect(M, 636, W - 2 * M, 1.5);
-  g.globalAlpha = 1;
+  ornamentRule(g, M, W - M, 636);
   if (!rightPage) {
-    for (const [x, label, on] of [[M, '\u2039 Page', navState.prev], [W - M - 84, 'Page \u203a', navState.next]] as [number, string, boolean][]) {
+    g.font = `italic 20px ${SERIF}`;
+    for (const [x, label, on, align] of [
+      [M, '\u2039 Prev', navState.prev, 'left'],
+      [W - M, 'Next \u203a', navState.next, 'right'],
+    ] as [number, string, boolean, CanvasTextAlign][]) {
       g.globalAlpha = on ? 1 : 0.3;
-      g.strokeStyle = 'rgba(28,31,54,0.6)';
-      g.lineWidth = 2;
-      g.strokeRect(x, 650, 84, 38);
-      g.fillStyle = ink;
-      g.font = '19px system-ui, sans-serif';
-      g.textAlign = 'center';
-      g.fillText(label, x + 42, 675);
+      g.fillStyle = INK;
+      g.textAlign = align;
+      g.fillText(label, x, 676);
+      const tw = g.measureText(label).width;
+      g.globalAlpha = on ? 0.5 : 0.15;
+      g.fillRect(align === 'left' ? x : x - tw, 682, tw, 1);
     }
     g.globalAlpha = 1;
+    if (p.num > 0) {
+      g.fillStyle = INK_SOFT;
+      g.font = `italic 18px ${SERIF}`;
+      g.textAlign = 'center';
+      g.fillText(String(p.num), W / 2, 676);
+    }
   } else {
-    g.font = '20px system-ui, sans-serif';
+    if (p.num > 0) {
+      g.fillStyle = INK_SOFT;
+      g.font = `italic 16px ${SERIF}`;
+      g.textAlign = 'right';
+      g.fillText(String(p.num), W - M, 42);
+    }
     g.textAlign = 'left';
-    let shown = inputState.text;
-    while (shown && g.measureText(shown).width > 330) shown = shown.slice(1);
-    if (shown) {
-      g.fillStyle = ink;
-      g.fillText(shown, M + 4, 676);
+    g.font = `20px ${SERIF}`;
+    const txt = inputState.text;
+    const caret = Math.min(Math.max(inputState.caret, 0), txt.length);
+    const caretW = g.measureText(txt.slice(0, caret)).width;
+    const scroll = Math.max(0, caretW - 322); // keep the caret inside the field
+    g.save();
+    g.beginPath();
+    g.rect(M, 646, 346, 46);
+    g.clip();
+    if (txt) {
+      g.fillStyle = INK;
+      g.fillText(txt, M + 4 - scroll, 676);
     } else {
-      g.fillStyle = 'rgba(28,31,54,0.5)';
-      g.fillText('Type a question', M + 4, 676);
+      g.fillStyle = 'rgba(60,46,30,0.85)';
+      g.font = `italic 20px ${SERIF}`;
+      g.fillText('Ask a question\u2026', M + 4, 676);
+      g.font = `20px ${SERIF}`;
     }
-    if (inputState.focus) {
-      g.fillStyle = ink;
-      g.fillRect(M + 4 + (shown ? g.measureText(shown).width + 2 : 0), 656, 2, 24);
+    if (inputState.focus && inputState.blink) {
+      g.fillStyle = INK;
+      g.fillRect(M + 4 + caretW - scroll, 656, 2, 24);
     }
-    g.fillStyle = 'rgba(28,31,54,0.55)';
-    g.fillRect(M, 686, 346, 1.5);
-    g.fillStyle = '#2f7f78';
-    g.fillRect(W - M - 92, 650, 92, 38);
-    g.fillStyle = '#ffffff';
-    g.font = 'bold 20px system-ui, sans-serif';
+    g.restore();
+    g.fillStyle = INK_SOFT;
+    g.globalAlpha = 0.75;
+    for (let x = M; x < M + 346; x += 5) g.fillRect(x, 686, 2.5, 1.2); // a dotted line to write on
+    g.globalAlpha = 1;    const bx = W - M - 92;
+    const by = 650;
+    const bw = 92;
+    const bh = 38;
+    const ready = inputState.text.trim().length > 0;
+    g.save();
+    // a faintly darkened, ink-bordered cartouche, like a printed label on the page
+    g.fillStyle = ready ? 'rgba(110,42,23,0.12)' : 'rgba(60,40,20,0.06)';
+    g.fillRect(bx, by, bw, bh);
+    g.strokeStyle = ready ? INK_RED : INK_SOFT;
+    g.globalAlpha = ready ? 0.9 : 0.55;
+    g.lineWidth = 1.2;
+    g.strokeRect(bx + 0.6, by + 0.6, bw - 1.2, bh - 1.2);
+    g.lineWidth = 0.8;
+    g.strokeRect(bx + 4.5, by + 4.5, bw - 9, bh - 9);
+    g.fillStyle = ready ? INK_RED : INK_SOFT;
+    diamond(g, bx + 2, by + bh / 2, 3);
+    diamond(g, bx + bw - 2, by + bh / 2, 3);
+    g.globalAlpha = 1;
+    g.font = `italic 21px ${SERIF}`;
     g.textAlign = 'center';
-    g.fillText('Ask', W - M - 46, 675);
+    g.fillStyle = ready ? INK_RED : 'rgba(65,53,42,0.6)';
+    g.fillText('Ask', bx + bw / 2, 676);
+    g.restore();
   }
   g.restore();
 }
@@ -396,21 +808,14 @@ function drawFooter(g: CanvasRenderingContext2D, p: Page) {
 function paintPage(g: CanvasRenderingContext2D, p: Page, glow: boolean) {
   const W = PAGE_W_PX;
   const H = PAGE_H_PX;
+  const rightPage = (p.num - 1) % 2 === 0;
   g.clearRect(0, 0, W, H);
-  if (!glow) {
-    g.fillStyle = '#aeb4cb';
-    g.fillRect(0, 0, W, H);
-    const vg = g.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, H * 0.78);
-    vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(10,12,30,0.35)');
-    g.fillStyle = vg;
-    g.fillRect(0, 0, W, H);
-  }
+  if (!glow) g.drawImage(paperCanvas(rightPage), 0, 0);
   if (p.kind === 'blank') {
     if (!glow) drawFooter(g, p);
     return;
   }
-  const col = glow ? '#7ff5e4' : '#1c1f36';
+  const col = glow ? '#7ff5e4' : INK;
   g.fillStyle = col;
   g.textBaseline = 'alphabetic';
   g.textAlign = 'left';
@@ -420,7 +825,7 @@ function paintPage(g: CanvasRenderingContext2D, p: Page, glow: boolean) {
     p.lines.forEach((l, i) => {
       if (budget <= 0) return;
       const k = l.charCodeAt(0);
-      const styled = k >= 1 && k <= 4;
+      const styled = k >= 1 && k <= 5;
       const body = styled ? l.slice(1) : l;
       const n = budget >= l.length ? body.length : Math.max(0, Math.floor(budget) - (styled ? 1 : 0));
       budget -= l.length;
@@ -429,15 +834,23 @@ function paintPage(g: CanvasRenderingContext2D, p: Page, glow: boolean) {
       const text = body.slice(0, n);
       if (k === 1) {
         g.font = FONT_LEAD;
+        g.fillStyle = glow ? col : INK_RED;
         g.fillText(text, x0, y);
+        g.fillStyle = col;
       } else if (k === 2 || k === 3) {
-        if (k === 2) g.fillText('\u2022', x0 + 4, y);
+        if (k === 2) {
+          g.fillStyle = glow ? col : INK_RED;
+          g.fillText('\u2022', x0 + 4, y);
+          g.fillStyle = col;
+        }
         g.fillText(text, x0 + BULLET_IN, y);
       } else if (k === 4) {
         g.font = FONT_META;
-        g.fillStyle = glow ? col : '#4b5070';
+        g.fillStyle = glow ? col : INK_SOFT;
         g.fillText(text, x0 + BULLET_IN, y - 4);
         g.fillStyle = col;
+      } else if (k === 5) {
+        g.fillText(text, x0 + PARA_INDENT, y);
       } else {
         g.fillText(text, x0, y);
       }
@@ -445,17 +858,23 @@ function paintPage(g: CanvasRenderingContext2D, p: Page, glow: boolean) {
     });
   };
   if (p.kind === 'title') {
-    g.font = 'bold 40px Georgia, "Times New Roman", serif';
-    g.textAlign = 'center';
-    g.fillText('Questions', W / 2, 104);
-    g.fillRect(PAGE_MARGIN + 80, 128, W - 2 * PAGE_MARGIN - 160, 2);
+    g.font = `30px ${SERIF}`;
+    spaced(g, 'QUESTIONS', W / 2, 104, 8, 'center');
+    if (!glow) ornamentRule(g, PAGE_MARGIN + 70, W - PAGE_MARGIN - 70, 128);
     g.textAlign = 'left';
     g.font = FONT_BODY;
     write(PAGE_MARGIN, 200);
   } else {
-    g.font = 'bold 16px system-ui, sans-serif';
-    g.fillText((p.kind === 'user' ? 'YOU' : 'ANSWER') + (p.first ? '' : ' (CONTINUED)'), PAGE_MARGIN, 42);
-    g.fillRect(PAGE_MARGIN, 52, W - 2 * PAGE_MARGIN, 1.5);
+    g.font = `13px ${SERIF}`;
+    spaced(g, (p.kind === 'user' ? 'YOUR QUESTION' : 'THE ANSWER') + (p.first ? '' : ' (CONTINUED)'), PAGE_MARGIN, 42, 3);
+    if (glow) {
+      g.fillRect(PAGE_MARGIN, 52, W - 2 * PAGE_MARGIN, 1.5);
+    } else {
+      g.save();
+      g.globalAlpha = 0.55;
+      g.fillRect(PAGE_MARGIN, 52, W - 2 * PAGE_MARGIN, 1.2);
+      g.restore();
+    }
     g.font = p.kind === 'user' || p.pending ? FONT_USER : FONT_BODY;
     write(PAGE_MARGIN, TEXT_TOP + 22);
   }
@@ -911,7 +1330,7 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   lbox(-0.87, 0.87, 0.235, 0.25, -0.87, 0.87, 0, lect, trimM);
   lcyl(0.42, 0.52, 2, 1.4, LECT_DARK);
   lcyl(0.62, 0.55, 0.18, 2.45, LECT_LIGHT);
-  lcyl(0.95, 0.6, 0.45, 2.7, LECT_DARK);
+  lcyl(0.8, 0.6, 0.2, 2.64, LECT_DARK); // lower and narrower so it stays under the desk
   lcyl(0.64, 0.64, 0.03, 2.56, 0, trimM);
   // tilted desk with a lip
   const D = new THREE.Group();
@@ -926,17 +1345,55 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   const B = new THREE.Group();
   B.position.set(0, 0.07, 0);
   D.add(B);
-  lbox(-0.8, -0.02, 0, 0.05, -0.54, 0.54, 0x14172a, B);
-  lbox(0.02, 0.8, 0, 0.05, -0.54, 0.54, 0x14172a, B);
-  lbox(-0.03, 0.03, 0, 0.06, -0.54, 0.54, 0x0e1020, B);
-  lbox(-0.74, -0.02, 0.05, 0.11, -0.5, 0.5, 0x5d6378, B);
-  lbox(0.02, 0.74, 0.05, 0.11, -0.5, 0.5, 0x5d6378, B);
+  // leather cover boards (unlit, so the court's blue light cannot turn them black), cream page edges, dark spine cord
+  const leatherSideM = keepMat(new THREE.MeshBasicMaterial({ color: 0x33281d })); // a shade lighter than the painted top, so the board reads as a thick slab
+  const spineM = keepMat(new THREE.MeshBasicMaterial({ color: 0x120d09 }));
+  const pageEdgeM = keepMat(new THREE.MeshBasicMaterial({ map: pageEdgeTexture() }));
+  const bbox = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, m: THREE.Material) => {
+    const o = new THREE.Mesh(keepGeo(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0)), m);
+    o.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+    B.add(o);
+    return o;
+  };
+  bbox(-0.84, -0.02, 0, 0.06, -0.56, 0.56, leatherSideM);
+  bbox(0.02, 0.84, 0, 0.06, -0.56, 0.56, leatherSideM);
+  bbox(-0.03, 0.03, 0, 0.065, -0.56, 0.56, spineM);
+  bbox(-0.74, -0.02, 0.05, 0.11, -0.5, 0.5, pageEdgeM);
+  bbox(0.02, 0.74, 0.05, 0.11, -0.5, 0.5, pageEdgeM);
+  // painted leather on top of each cover board: tooled border, iron corner brackets and a clasp on the outer edge
+  const coverPlane = (x: number, left: boolean) => {
+    const o = new THREE.Mesh(
+      keepGeo(new THREE.PlaneGeometry(0.82, 1.12).rotateX(-Math.PI / 2)),
+      keepMat(new THREE.MeshBasicMaterial({ map: coverTexture(left) })),
+    );
+    o.position.set(x, 0.0615, 0);
+    B.add(o);
+  };
+  coverPlane(-0.43, true);
+  coverPlane(0.43, false);
+  // soft shadow ring where each page block sits on its cover board, and a shadow under the whole book on the desk
+  const blockShadowM = keepMat(
+    new THREE.MeshBasicMaterial({ map: keepTex(frameShadowTexture(440, 540, 40, 20, 360, 500, 22)), transparent: true, opacity: 0.8, depthWrite: false }),
+  );
+  for (const sx of [-0.38, 0.38]) {
+    const o = new THREE.Mesh(keepGeo(new THREE.PlaneGeometry(0.88, 1.08).rotateX(-Math.PI / 2)), blockShadowM);
+    o.position.set(sx, 0.0625, 0);
+    o.renderOrder = 1;
+    B.add(o);
+  }
+  const deskShadowM = keepMat(
+    new THREE.MeshBasicMaterial({ map: keepTex(frameShadowTexture(800, 600, 64, 76, 672, 448, 40)), transparent: true, opacity: 0.7, depthWrite: false }),
+  );
+  const deskShadow = new THREE.Mesh(keepGeo(new THREE.PlaneGeometry(2.0, 1.5).rotateX(-Math.PI / 2)), deskShadowM);
+  deskShadow.position.set(0, 0.006, 0);
+  deskShadow.renderOrder = 1;
+  B.add(deskShadow);
 
   // ---- pages -------------------------------------------------------------------------------------------------
   const PW = 0.7;
   const PH = 0.96;
   const pageGeo = () => keepGeo(new THREE.PlaneGeometry(PW, PH).rotateX(-Math.PI / 2));
-  const mkInk = () => keepMat(new THREE.MeshBasicMaterial({ color: 0xd6dae8 }));
+  const mkInk = () => keepMat(new THREE.MeshBasicMaterial({ color: 0xffffff }));
   const mkGlow = () => keepMat(new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, fog: false }));
   const leftInk = mkInk();
   const rightInk = mkInk();
@@ -975,8 +1432,8 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   fg.setAttribute('position', new THREE.BufferAttribute(fp, 3));
   fg.setAttribute('uv', new THREE.BufferAttribute(fu, 2));
   fg.setIndex(fi);
-  const frontMat = keepMat(new THREE.MeshBasicMaterial({ color: 0xd6dae8, side: THREE.FrontSide }));
-  const backMat = keepMat(new THREE.MeshBasicMaterial({ color: 0xd6dae8, side: THREE.BackSide }));
+  const frontMat = keepMat(new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.FrontSide }));
+  const backMat = keepMat(new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide }));
   const leafF = new THREE.Mesh(fg, frontMat);
   const leafB = new THREE.Mesh(fg, backMat);
   leafF.frustumCulled = leafB.frustumCulled = false;
@@ -1077,8 +1534,9 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   const repaint = (i: number) => {
     const t = cache.get(i);
     if (!t) return;
-    paintPage(t.ci, pages[i], false);
-    paintPage(t.cg, pages[i], true);
+    const pg = pages[i] ?? mkPage({ num: i + 1 }); // the trailing blank right page has no entry in pages
+    paintPage(t.ci, pg, false);
+    paintPage(t.cg, pg, true);
     t.ink.needsUpdate = true;
     t.glow.needsUpdate = true;
   };
@@ -1255,10 +1713,14 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
   };
   window.addEventListener('chat-message', onMessage);
   window.addEventListener('chat-reset', onReset);
+  let blinkAt = 0;
   const onInput = (e: Event) => {
-    const d = (e as CustomEvent<{ text?: string; focus?: boolean }>).detail;
+    const d = (e as CustomEvent<{ text?: string; focus?: boolean; caret?: number }>).detail;
     inputState.text = d && typeof d.text === 'string' ? d.text : '';
     inputState.focus = !!(d && d.focus);
+    inputState.caret = d && typeof d.caret === 'number' ? d.caret : inputState.text.length;
+    inputState.blink = true; // the caret stays solid while you type or move it
+    blinkAt = performance.now();
     if (!flipping) repaintInput();
   };
   window.addEventListener('book-input', onInput);
@@ -1434,6 +1896,13 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
       bookLevel += (speakingTarget - bookLevel) * (1 - Math.exp(-dt / (speakingTarget > bookLevel ? 0.6 : 1.5)));
 
       tickReveal(dt);
+      if (inputState.focus) {
+        const on = (performance.now() - blinkAt) % 1060 < 640;
+        if (on !== inputState.blink) {
+          inputState.blink = on;
+          if (!flipping) repaintInput();
+        }
+      }
       if (flipping) {
         flipping.t += dt;
         const p = Math.min(1, flipping.t / flipping.dur);
@@ -1477,9 +1946,10 @@ export function createThroneRoom(endPt: THREE.Vector3, endTan: THREE.Vector3): T
       // book glow: the written words light up while the bot speaks
       leftGlow.opacity = rightGlow.opacity = 0; // lit words were unreadable on the pale paper; the book still glows around the edges
       trimM.opacity = 0.25 + 0.6 * bookLevel;
-      bookGlowM.opacity = 0.1 * bookLevel;
+      bookGlowM.opacity = 0; // an additive glow washes out the parchment
       backM.opacity = 0.25 + 0.15 * bookLevel;
 
+      moteMat.opacity = 0.8 * smooth(1.5, 4.5, camera.distanceTo(bookWorld)); // drifting lights must not cross the page
       mistTex.offset.x = (clock * 0.01) % 1;
       gateMistMat.opacity = 0.5 * smooth(1.2, 7, camera.distanceTo(gateWorld));
       gateMist.visible = gateMistMat.opacity > 0.01;
