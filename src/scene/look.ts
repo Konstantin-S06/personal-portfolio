@@ -326,3 +326,39 @@ export const JOB_HOLD = 0.06; // as SIGN_HOLD / SIGN_BLEND / SIGN_EASE, for the 
 export const JOB_BLEND = 0.5;
 export const JOB_EASE = 0.5; // seconds: time constant of the glide onto and off the board, and of the slide between its halves
 export const JOB_SLIDE_HOLD = 0.12; // fraction of the tech-to-notes gap spent parked at each half before the camera slides across
+
+// ---- 13. Contact lectern (lectern.ts): slanted desk with the contact paper, beside the campfire -------------
+export const CONTACT_FIRE_DIST = 1.9; // lectern sits this far from the fire, toward the camera's end of the path
+export const CONTACT_SIDE = -1.7; // and this far to the viewer's right of the fire (Contact slides the fire left)
+export const CONTACT_CLAIM = 1.5; // ground reserved around the lectern so scatter keeps clear
+export const CONTACT_DESK_Y = 1.12; // desk centre height
+export const CONTACT_TILT = 0.5; // radians the desk leans toward the viewer
+export const CONTACT_TEX_W = 1024; // desk canvas, px
+export const CONTACT_TEX_H = 768;
+export const CONTACT_PX_PER_UNIT = 640; // canvas px per world unit: desk is 1.6 x 1.2
+export const CONTACT_SHEET_W = 800; // the paper sheet, logical px (DOM controls use this as their coordinate space)
+export const CONTACT_SHEET_H = 648;
+export const CONTACT_EMISSIVE = SIGN_EMISSIVE;
+export const CONTACT_FOCUS_NEAR = 5.8; // camera within this distance of the paper: the DOM controls are fully live ...
+export const CONTACT_FOCUS_FAR = 8.5; // ... fading to off at this distance
+export const CONTACT_CAM_START = 0.88; // walk progress (0..1) at which the camera starts gliding to the lectern; 1 = only at the very end
+export const CONTACT_CAM_DIST = 2.0; // camera distance from the paper centre when parked (wide screens; narrow ones back off automatically)
+export const CONTACT_CAM_ELEV = 0.6; // radians above the horizon the camera looks down at the paper (higher = more top-down)
+export const CONTACT_CAM_FIT = 1.3; // minimum visible width as a multiple of the paper width, so narrow windows still show all of it
+export const CONTACT_CAM_THRONE_FADE = 0.2; // throne progress over which the lectern view hands back to the throne camera
+
+// ---- 14. Contact bird (bird.ts): flies in, lifts the contact paper as a scroll, flies away ---------------------
+export const BIRD_SCALE = 1.2; // bird model is ~0.6 long at scale 1
+export const BIRD_FLAP_HZ = 7; // wing beats per second in flight (hover is 1.4x)
+export const BIRD_FLAP_AMP = 0.75; // radians of wing swing
+export const BIRD_START_DIST = 16; // entry point: this far behind the lectern (and 0.6x that to the left)
+export const BIRD_START_HEIGHT = 5; // ... and this high above the desk; the exit climbs to twice this
+export const BIRD_HOVER = 0.95; // hover height above the paper along the desk normal
+export const BIRD_GRAB_HEIGHT = 0.34; // bird height above the paper when it takes the sheet
+export const BIRD_IN_SECONDS = 2.0;
+export const BIRD_GRAB_SECONDS = 0.6;
+export const BIRD_ROLL_SECONDS = 0.6; // sheet rolls up and is lifted to the beak
+export const BIRD_OUT_SECONDS = 2.0;
+export const BIRD_SCROLL_LEN = 0.42; // carried scroll, world units
+export const BIRD_SCROLL_RADIUS = 0.03;
+export const BIRD_COLORS = { body: 0x7a80a6, head: 0x8a90b4, beak: 0xd9a24a, tail: 0x555a7a, wing: 0x626888, glow: 0x1a1a2a };

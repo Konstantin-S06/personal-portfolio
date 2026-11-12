@@ -24,6 +24,8 @@ export async function createBestWorld(
     setLabels: world.setLabels?.bind(world),
     setProjectSigns: world.setProjectSigns?.bind(world),
     setJobBoard: world.setJobBoard?.bind(world),
+    playContactBird: world.playContactBird?.bind(world),
+    resetContactBird: world.resetContactBird?.bind(world),
     dispose() {
       if (current === owned) current = null;
       dispose();

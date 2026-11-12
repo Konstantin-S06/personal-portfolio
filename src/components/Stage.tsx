@@ -7,10 +7,12 @@ import { activeIndex, chapterLanding, chapterOpacity, clamp } from '../lib/progr
 import { layoutRanges } from '../lib/stops';
 import { cancelScrollTween, tweenScrollTo } from '../lib/navigator';
 import { ChapterContent } from './ChapterContent';
+import { ContactPaperControls } from './ContactPaperControls';
 import { SignControls } from './SignControls';
 import { JobNotesControls, JobTechText } from './JobBoardControls';
 import { jobBoardContent, signContent, type JobBoardContent, type SignContent } from '../lib/signContent';
 import { techStack } from '../data/techstack';
+
 
 const SCRUB_SECONDS = 0.8; // exponential time constant: camera trails the scrollbar by about this much
 const DEBUG_HUD = new URLSearchParams(window.location.search).get('debug') === '1';
@@ -74,6 +76,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
   const jobRef = useRef<JobBoardContent | null>(null);
   jobRef.current = jobContent;
   const [job, setJob] = useState(false); // true once the scene has the job board: the flat Tech Stack and More Projects cards then step aside
+  const [paper, setPaper] = useState(false); // true once the scene has the Contact lectern: the flat Contact card then steps aside
 
   // The three.js scene is a separate chunk, fetched only here (pinned mode). Flat-mode users never load it
   // (and never download nature GLBs). The canvas is created per effect run so StrictMode remounts get a fresh
@@ -108,6 +111,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
       setSigns(typeof world.setProjectSigns === 'function');
       world.setJobBoard?.(jobRef.current);
       setJob(typeof world.setJobBoard === 'function');
+      setPaper(typeof world.playContactBird === 'function');
       world.resize();
       setLoadPct(100);
       setLoading(false);
@@ -121,6 +125,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
       worldRef.current = null;
       setSigns(false);
       setJob(false);
+      setPaper(false);
       canvas.remove();
     };
   }, []);
@@ -271,6 +276,19 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
     };
   }, [navRef, chapters]);
 
+    // Runs the bird after a successful send; `done` resets the form. Covers reduced motion (false return), a missing
+  // method and a stuck animation, and can only fire once.
+  const sendBird = (done: () => void) => {
+    let finished = false;
+    const timer = window.setTimeout(() => once(), 12000);
+    function once() {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timer);
+      done();
+    }
+    if (!worldRef.current?.playContactBird?.(once)) once();
+  };
   const firstProjectId = chapters.find((c) => c.kind === 'project')?.id;
   const contactId = chapters.find((c) => c.kind === 'cta')?.id ?? 'connect';
   const projectTotal = chapters.filter((c) => c.kind === 'project').length;
@@ -298,7 +316,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
             const jobPart = job && jobContent ? (c.kind === 'tech' ? 'tech' : c.kind === 'more' ? 'notes' : null) : null;
             return (
               <div
-                className={`panel${c.kind === 'project' ? ' panel-project' : ''}${sign ? ' panel-sign' : ''}${jobPart ? ' panel-job' : ''}${c.kind === 'more' && !jobPart ? ' panel-more' : ''}${c.kind === 'cta' ? ' panel-cta' : ''}${c.kind === 'chat' ? ' panel-chat' : ''}`}
+              className={`panel${c.kind === 'project' ? ' panel-project' : ''}${sign ? ' panel-sign' : ''}${jobPart ? ' panel-job' : ''}${c.kind === 'more' && !jobPart ? ' panel-more' : ''}${c.kind === 'cta' ? ' panel-cta' : ''}${c.kind === 'cta' && paper ? ' panel-paper' : ''}${c.kind === 'chat' ? ' panel-chat' : ''}`}
                 id={c.id}
                 key={c.id}
                 ref={(el) => { panelRefs.current[i] = el; }}
@@ -309,6 +327,8 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
                   <JobTechText content={jobContent} />
                 ) : jobPart === 'notes' && jobContent ? (
                   <JobNotesControls content={jobContent} />
+                ) : c.kind === 'cta' && paper ? (
+                  <ContactPaperControls onSent={sendBird} />
                 ) : (
                 <ChapterContent
                   kind={c.kind}

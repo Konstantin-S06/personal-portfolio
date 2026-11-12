@@ -11,6 +11,8 @@ import { createThroneRoom } from './throneRoom';
 import { createSky } from './sky';
 import { createSignposts } from './boards';
 import { createJobBoard } from './jobBoard';
+import { createLectern } from './lectern';
+import { createContactBird } from './bird';
 import type { JobBoardContent, SignContent } from '../lib/signContent';
 import { walkProgress, throneProgress } from '../lib/timeline';
 
@@ -24,6 +26,13 @@ export interface World {
   setProjectSigns?(items: SignContent[]): void;
   /** Content for the job board (Tech Stack + More Projects). Null clears it. Its presence tells the UI the board exists. */
   setJobBoard?(content: JobBoardContent | null): void;
+    /**
+   * Starts the bird flight after a successful send. `onDone` fires when the bird has left, or at once under reduced
+   * motion. Returns true only if a flight started (false under reduced motion or if one is already running).
+   */
+    playContactBird?(onDone?: () => void): boolean;
+    /** Puts the paper back on the desk (to send another message). */
+    resetContactBird?(): void;
   dispose(): void;
 }
 
@@ -208,6 +217,8 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   scene.add(signs.group);
   const jobBoard = createJobBoard({ curve, claim, anisotropy });
   scene.add(jobBoard.group);
+  const lectern = createLectern({ curve, fireAt: campfire, claim, anisotropy });
+  scene.add(lectern.group);
 
   /** Sideways scatter along the extended path. `preferFar` biases acceptance toward the outer band. */
   const scatterSpot = (
@@ -630,7 +641,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   );
   scene.add(ground);
   disposables.push(ground.geometry, ground.material as THREE.Material);
-  disposables.push(signs, jobBoard);
+  disposables.push(signs, jobBoard, lectern);
 
   const dirt = createDirtPath([...pathCore, ...room.routePoints], campfire);
   scene.add(dirt.group);
@@ -858,6 +869,9 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   const pos = new THREE.Vector3();
   const look = new THREE.Vector3();
   const gazeAim = new THREE.Vector3();
+  const lectPos = new THREE.Vector3();
+  const lectLook = new THREE.Vector3();
+  const lectDir = new THREE.Vector3(endPt.x - lectern.paperPose.center.x, 0, endPt.z - lectern.paperPose.center.z).normalize();
   const reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   let motion = !reducedQuery.matches;
   fireflies.visible = motion;
@@ -866,6 +880,19 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   let lastProgress = 0;
   let lastDrawAt = 0;
   let disposed = false;
+
+  let birdDone: (() => void) | null = null;
+  const bird = createContactBird({
+    lectern,
+    reducedMotion: () => !motion,
+    onDone: () => {
+      const cb = birdDone;
+      birdDone = null;
+      cb?.();
+    },
+  });
+  scene.add(bird.group);
+  disposables.push(bird);
 
   const resize = () => {
     const w = canvas.clientWidth || window.innerWidth;
@@ -900,6 +927,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     lastTime = now;
     lastDrawAt = now;
     if (motion) clock += dt;
+    bird.update(dt);
 
     const pAll = Math.min(Math.max(lastProgress, 0), 1);
     const p = walkProgress(pAll);
@@ -919,16 +947,37 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     jobBoard.dolly(p, camera.aspect, motion, dt, pos, look);
     if (tThrone > 0) {
       room.cameraAt(tThrone, pos);
-      const fdist = Math.max(Math.hypot(campfire.x - pos.x, campfire.z - pos.z), 0.5);
-      const fpitch = Math.atan2(pos.y, fdist) - THREE.MathUtils.degToRad(FIRE_GAZE.baseDeg);
-      gazeAim.set(campfire.x, pos.y - fdist * Math.tan(fpitch), campfire.z);
+      room.cameraAt(Math.min(tThrone + 0.45, 1), gazeAim); // look at where the walk is heading: round the fire toward the gate
+      gazeAim.y = pos.y;
       room.gaze(tThrone, gazeAim, look, pos);
+    }
+        // Contact: glide from the end of the walk to a view of the lectern paper. Blended after every other camera
+    // rule, and handed back to the throne camera as that starts, so nothing jumps.
+    const wLect =
+      THREE.MathUtils.smoothstep(p, L.CONTACT_CAM_START, 1) *
+      (1 - THREE.MathUtils.smoothstep(tThrone, 0, L.CONTACT_CAM_THRONE_FADE));
+    if (wLect > 0) {
+      const c = lectern.paperPose.center;
+      const fitDist =
+        (lectern.paperPose.width * L.CONTACT_CAM_FIT) /
+        (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect);
+      const dist = Math.max(L.CONTACT_CAM_DIST, fitDist);
+      lectPos.set(
+        c.x + lectDir.x * Math.cos(L.CONTACT_CAM_ELEV) * dist,
+        c.y + Math.sin(L.CONTACT_CAM_ELEV) * dist,
+        c.z + lectDir.z * Math.cos(L.CONTACT_CAM_ELEV) * dist,
+      );
+      lectLook.copy(c);
+      pos.lerp(lectPos, wLect);
+      look.lerp(lectLook, wLect);
     }
     camera.position.copy(pos);
     camera.lookAt(look);
     sky.update(camera, pixelRatio);
     signs.project(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
     jobBoard.project(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
+    lectern.setFocus(1 - THREE.MathUtils.smoothstep(camera.position.distanceTo(lectern.paperPose.center), L.CONTACT_FOCUS_NEAR, L.CONTACT_FOCUS_FAR));
+    lectern.project(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
     if (tThrone > 0) room.projectBook(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
 
     sun.position.set(pos.x + 25, 40, pos.z + 15);
@@ -1008,6 +1057,9 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
       missingRoles: kit?.missingRoles ?? [],
     };
     (window as unknown as { __worldStats?: typeof stats }).__worldStats = stats;
+    const dev = window as unknown as { __playContactBird?: () => boolean; __resetContactBird?: () => void };
+    dev.__playContactBird = () => bird.play();
+    dev.__resetContactBird = () => bird.reset();
     console.info(
       `[world] ${stats.mode} draw calls ${calls}/${L.MAX_DRAW_CALLS}, triangles ${triangles}, lights 3/${L.MAX_DYNAMIC_LIGHTS}, chunks ${chunkGroups.length}, props ${propCount}`,
     );
@@ -1020,6 +1072,16 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     },
     setJobBoard(content) {
       jobBoard.setContent(content);
+    },
+    playContactBird(onDone) {
+      if (bird.playing) return false;
+      birdDone = onDone ?? null;
+      return bird.play();
+    },
+    resetContactBird() {
+      birdDone = null;
+      bird.reset();
+      draw();
     },
     render(progress) {
       lastProgress = Math.min(Math.max(progress, 0), 1);

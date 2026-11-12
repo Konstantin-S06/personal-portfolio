@@ -22,6 +22,15 @@ function go(e: MouseEvent<HTMLAnchorElement>, pinned: boolean, id: string | unde
   e.preventDefault();
   onNavigate(id);
 }
+export function ContactLinks({ className = 'contact-links' }: { className?: string }) {
+  return (
+    <div className={className}>
+      <a href="mailto:konstantin.shtop@gmail.com">Email</a>
+      <a href="https://github.com/Konstantin-S06" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://linkedin.com/in/konstantin-shtop-529277327/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+    </div>
+  );
+}
 
 export function ChapterContent({
   kind,
@@ -122,20 +131,16 @@ export function ChapterContent({
       return <MoreArc title={title} projects={actions.moreProjects ?? []} />;
     case 'chat':
       return <ChatPanel title={title} />;
-    case 'cta':
-      return (
-        <div className="container">
-          <div className="contact-card">
-            <h2>{title}</h2>
-            <p className="contact-lead">Interested in working together or discussing opportunities?</p>
-            <ContactForm />
-            <div className="contact-links">
-              <a href="mailto:konstantin.shtop@gmail.com">Email</a>
-              <a href="https://github.com/Konstantin-S06" target="_blank" rel="noopener noreferrer">GitHub</a>
-              <a href="https://linkedin.com/in/konstantin-shtop-529277327/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+      case 'cta':
+        return (
+          <div className="container">
+            <div className="contact-card">
+              <h2>{title}</h2>
+              <p className="contact-lead">Interested in working together or discussing opportunities?</p>
+              <ContactForm />
+              <ContactLinks />
             </div>
           </div>
-        </div>
-      );
+        );
   }
 }
