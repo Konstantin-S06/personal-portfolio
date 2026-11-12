@@ -8,6 +8,8 @@ import { layoutRanges } from '../lib/stops';
 import { cancelScrollTween, tweenScrollTo } from '../lib/navigator';
 import { ChapterContent } from './ChapterContent';
 import { ContactPaperControls } from './ContactPaperControls';
+import { HomeSignControls } from './HomeSignControls';
+import type { HomeContent } from '../scene/homeSign'; // type only
 import { SignControls } from './SignControls';
 import { JobNotesControls, JobTechText } from './JobBoardControls';
 import { jobBoardContent, signContent, type JobBoardContent, type SignContent } from '../lib/signContent';
@@ -56,6 +58,27 @@ function jobBoardData(chapters: Chapter[], projects: Project[]): JobBoardContent
   const more = chapters.find((c) => c.kind === 'more');
   return jobBoardContent(techStack, more ? remainingProjects(chapters, projects) : [], tech.title, more?.title ?? '');
 }
+/** Content for the Home signpost that replaces the flat Home card in pinned mode. Copy mirrors ChapterContent's `hero` case. */
+function homeData(chapters: Chapter[]): HomeContent | null {
+  if (!chapters.some((c) => c.kind === 'hero')) return null;
+  const firstProjectId = chapters.find((c) => c.kind === 'project')?.id;
+  const contactId = chapters.find((c) => c.kind === 'cta')?.id ?? 'connect';
+  return {
+    stopId: 'home',
+    kicker: 'Computer Science Co-op · University of Toronto',
+    title: 'Konstantin Shtop',
+    paragraphs: [
+      "I'm a computer science student who prefers to work on the backend: APIs, databases and the logic behind an app.",
+      "Right now I'm a Software Developer intern at Environment and Climate Change Canada, a Software Engineer on the UofTHacks team, and an Undergraduate AI Research Assistant in the Department of Computer Science at the University of Toronto.",
+      "Scroll to walk through some of what I've built.",
+    ],
+    actions: [
+      { id: firstProjectId ?? 'more-projects', label: 'Start the walk' },
+      { id: contactId, label: 'Get in touch' },
+    ],
+    hint: 'Scroll to walk forward',
+  };
+}
 
 export function Stage({ navRef, chapters, projects }: StageProps) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -77,6 +100,10 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
   jobRef.current = jobContent;
   const [job, setJob] = useState(false); // true once the scene has the job board: the flat Tech Stack and More Projects cards then step aside
   const [paper, setPaper] = useState(false); // true once the scene has the Contact lectern: the flat Contact card then steps aside
+  const homeContent = homeData(chapters);
+  const homeRef = useRef<HomeContent | null>(null);
+  homeRef.current = homeContent;
+  const [home, setHome] = useState(false); // true once the scene has the Home signpost: the flat Home card then steps aside
 
   // The three.js scene is a separate chunk, fetched only here (pinned mode). Flat-mode users never load it
   // (and never download nature GLBs). The canvas is created per effect run so StrictMode remounts get a fresh
@@ -111,6 +138,8 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
       setSigns(typeof world.setProjectSigns === 'function');
       world.setJobBoard?.(jobRef.current);
       setJob(typeof world.setJobBoard === 'function');
+      world.setHomeSign?.(homeRef.current);
+      setHome(typeof world.setHomeSign === 'function');
       setPaper(typeof world.playContactBird === 'function');
       world.resize();
       setLoadPct(100);
@@ -125,6 +154,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
       worldRef.current = null;
       setSigns(false);
       setJob(false);
+      setHome(false)
       setPaper(false);
       canvas.remove();
     };
@@ -135,6 +165,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
     worldRef.current?.setLabels?.(labelsRef.current);
     worldRef.current?.setProjectSigns?.(signsRef.current);
     worldRef.current?.setJobBoard?.(jobRef.current);
+    worldRef.current?.setHomeSign?.(homeRef.current);
     redrawRef.current?.();
   }, [chapters, projects]);
 
@@ -314,14 +345,17 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
             const projectIndex = c.kind === 'project' ? ++projectNo : undefined;
             const sign = signs && projectIndex ? signsRef.current.find((x) => x.stopId === `project-${projectIndex}`) : undefined;
             const jobPart = job && jobContent ? (c.kind === 'tech' ? 'tech' : c.kind === 'more' ? 'notes' : null) : null;
+            const homePart = home && homeContent && c.kind === 'hero' ? homeContent : null;
             return (
               <div
-              className={`panel${c.kind === 'project' ? ' panel-project' : ''}${sign ? ' panel-sign' : ''}${jobPart ? ' panel-job' : ''}${c.kind === 'more' && !jobPart ? ' panel-more' : ''}${c.kind === 'cta' ? ' panel-cta' : ''}${c.kind === 'cta' && paper ? ' panel-paper' : ''}${c.kind === 'chat' ? ' panel-chat' : ''}`}
+              className={`panel${c.kind === 'project' ? ' panel-project' : ''}${sign ? ' panel-sign' : ''}${homePart ? ' panel-home' : ''}${jobPart ? ' panel-job' : ''}${c.kind === 'more' && !jobPart ? ' panel-more' : ''}${c.kind === 'cta' ? ' panel-cta' : ''}${c.kind === 'cta' && paper ? ' panel-paper' : ''}${c.kind === 'chat' ? ' panel-chat' : ''}`}
                 id={c.id}
                 key={c.id}
                 ref={(el) => { panelRefs.current[i] = el; }}
               >
-                {sign ? (
+                {homePart ? (
+                  <HomeSignControls content={homePart} onNavigate={(id) => navRef.current?.(id)} />
+                ) : sign ? (
                   <SignControls stopId={sign.stopId} content={sign} />
                 ) : jobPart === 'tech' && jobContent ? (
                   <JobTechText content={jobContent} />

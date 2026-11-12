@@ -1115,6 +1115,11 @@ section.hero .btn-secondary:hover {
 .panel-project.active .sign-ui.on-sign .sign-hit { pointer-events: auto; cursor: pointer; }
 .sign-hit:focus-visible { outline: 3px solid #d9ae50; outline-offset: 3px; }
 
+/* ==== Home signpost (homeSign.ts / HomeSignControls.tsx) ==== */
+.panel-home { transform: none !important; padding: 0; overflow: hidden; }
+.panel-home.active { pointer-events: none; }
+.panel-home.active .sign-ui.on-sign .sign-hit { pointer-events: auto; cursor: pointer; }
+
 /* ==== Job board: Tech Stack and More Projects share one painted board (jobBoard.ts / JobBoardControls.tsx) ==== */
 .panel-job { transform: none !important; padding: 0; overflow: hidden; }
 .panel-job.active { pointer-events: none; }
