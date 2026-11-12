@@ -7,6 +7,8 @@ import { activeIndex, chapterLanding, chapterOpacity, clamp } from '../lib/progr
 import { layoutRanges } from '../lib/stops';
 import { cancelScrollTween, tweenScrollTo } from '../lib/navigator';
 import { ChapterContent } from './ChapterContent';
+import { SignControls } from './SignControls';
+import { signContent, type SignContent } from '../lib/signContent';
 
 const SCRUB_SECONDS = 0.8; // exponential time constant: camera trails the scrollbar by about this much
 const DEBUG_HUD = new URLSearchParams(window.location.search).get('debug') === '1';
@@ -31,6 +33,18 @@ function bannerLabels(chapters: Chapter[], projects: Project[]): BannerLabel[] {
     }));
 }
 
+/** Content for the wooden project signposts, one per project chapter (`project-1` ..). */
+function signData(chapters: Chapter[], projects: Project[]): SignContent[] {
+  const total = chapters.filter((c) => c.kind === 'project').length;
+  let k = 0;
+  return chapters.flatMap((c) => {
+    if (c.kind !== 'project') return [];
+    const no = ++k;
+    const p = projects.find((x) => x.id === c.projectId);
+    return p ? [signContent(p, no, total, `project-${no}`)] : [];
+  });
+}
+
 export function Stage({ navRef, chapters, projects }: StageProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
@@ -43,6 +57,9 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
   const [loading, setLoading] = useState(true);
   const labelsRef = useRef<BannerLabel[]>([]);
   labelsRef.current = bannerLabels(chapters, projects);
+  const signsRef = useRef<SignContent[]>([]);
+  signsRef.current = signData(chapters, projects);
+  const [signs, setSigns] = useState(false); // true once the scene has wooden signposts: the flat project cards then step aside
 
   // The three.js scene is a separate chunk, fetched only here (pinned mode). Flat-mode users never load it
   // (and never download nature GLBs). The canvas is created per effect run so StrictMode remounts get a fresh
@@ -73,6 +90,8 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
       }
       worldRef.current = world;
       world.setLabels?.(labelsRef.current);
+      world.setProjectSigns?.(signsRef.current);
+      setSigns(typeof world.setProjectSigns === 'function');
       world.resize();
       setLoadPct(100);
       setLoading(false);
@@ -84,6 +103,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
       cancelled = true;
       worldRef.current?.dispose();
       worldRef.current = null;
+      setSigns(false);
       canvas.remove();
     };
   }, []);
@@ -91,6 +111,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
   // Chapter titles can change when API data arrives: repaint the banner text (the scene is not rebuilt).
   useEffect(() => {
     worldRef.current?.setLabels?.(labelsRef.current);
+    worldRef.current?.setProjectSigns?.(signsRef.current);
     redrawRef.current?.();
   }, [chapters, projects]);
 
@@ -255,13 +276,17 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
         <div className="stage-overlay">
           {chapters.map((c, i) => {
             const projectIndex = c.kind === 'project' ? ++projectNo : undefined;
+            const sign = signs && projectIndex ? signsRef.current.find((x) => x.stopId === `project-${projectIndex}`) : undefined;
             return (
               <div
-                className={`panel${c.kind === 'project' ? ' panel-project' : ''}${c.kind === 'more' ? ' panel-more' : ''}${c.kind === 'cta' ? ' panel-cta' : ''}${c.kind === 'chat' ? ' panel-chat' : ''}`}
+                className={`panel${c.kind === 'project' ? ' panel-project' : ''}${sign ? ' panel-sign' : ''}${c.kind === 'more' ? ' panel-more' : ''}${c.kind === 'cta' ? ' panel-cta' : ''}${c.kind === 'chat' ? ' panel-chat' : ''}`}
                 id={c.id}
                 key={c.id}
                 ref={(el) => { panelRefs.current[i] = el; }}
               >
+                {sign ? (
+                  <SignControls stopId={sign.stopId} content={sign} />
+                ) : (
                 <ChapterContent
                   kind={c.kind}
                   title={c.title}
@@ -276,6 +301,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
                     onNavigate: (id) => navRef.current?.(id),
                   }}
                 />
+                )}
               </div>
             );
           })}

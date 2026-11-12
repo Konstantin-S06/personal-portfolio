@@ -6,7 +6,11 @@ import { loadNatureKit, type NatureAsset, type NatureKit, type NatureProgress } 
 import * as L from './look';
 import { createCampfireFx, FIRE_GAZE } from './fire';
 import { createDirtPath } from './dirtPath';
+import { buildProcGeometries, buildGround, type ForestKind } from './forestKit';
 import { createThroneRoom } from './throneRoom';
+import { createSky } from './sky';
+import { createSignposts } from './boards';
+import type { SignContent } from '../lib/signContent';
 import { walkProgress, throneProgress } from '../lib/timeline';
 
 export interface World {
@@ -15,6 +19,8 @@ export interface World {
   resize(): void;
   /** Text for the decorative stop banners (kit world only). Safe to call at any time, repeatedly. */
   setLabels?(labels: BannerLabel[]): void;
+  /** Content for the wooden project signposts. Safe to call repeatedly. Its presence tells the UI the signs exist. */
+  setProjectSigns?(items: SignContent[]): void;
   dispose(): void;
 }
 
@@ -50,82 +56,6 @@ function varyColor(base: number, rand: () => number, amount = L.TREE_COLOR_VAR):
 
 function varyScale(base: number, rand: () => number, amount = L.TREE_SCALE_VAR): number {
   return base * (1 + (rand() * 2 - 1) * amount);
-}
-
-function gradientSky(): THREE.CanvasTexture {
-  const W = 1024;
-  const H = 640;
-  const FOG = '#343262'; // must equal WORLD_FOG_COLOR in look.ts
-  const c = document.createElement('canvas');
-  c.width = W;
-  c.height = H;
-  const g = c.getContext('2d')!;
-
-  const grad = g.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#0b1030');
-  grad.addColorStop(0.25, '#151a48');
-  grad.addColorStop(0.42, FOG);
-  grad.addColorStop(1, FOG);
-  g.fillStyle = grad;
-  g.fillRect(0, 0, W, H);
-
-  let seed = 12345;
-  const rnd = () => {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-
-  // stars, fading out toward the horizon
-  g.fillStyle = '#e8ecff';
-  for (let i = 0; i < 170; i++) {
-    const x = rnd() * W;
-    const y = rnd() * H * 0.36;
-    g.globalAlpha = (0.35 + rnd() * 0.65) * (1 - y / (H * 0.4));
-    g.beginPath();
-    g.arc(x, y, 0.5 + rnd() * 1.1, 0, Math.PI * 2);
-    g.fill();
-  }
-  g.globalAlpha = 1;
-
-  // moon with a soft glow
-  const mx = W * 0.74;
-  const my = H * 0.16;
-  const glow = g.createRadialGradient(mx, my, 0, mx, my, 130);
-  glow.addColorStop(0, 'rgba(190,200,255,0.45)');
-  glow.addColorStop(0.25, 'rgba(150,160,240,0.18)');
-  glow.addColorStop(1, 'rgba(120,130,220,0)');
-  g.fillStyle = glow;
-  g.fillRect(mx - 130, my - 130, 260, 260);
-  g.fillStyle = '#eef1ff';
-  g.beginPath();
-  g.arc(mx, my, 22, 0, Math.PI * 2);
-  g.fill();
-
-  // two layers of distant hills that fade into the fog colour at their base
-  const hill = (base: number, amp: number, f1: number, f2: number, p1: number, p2: number, top: string) => {
-    const gr = g.createLinearGradient(0, base - amp, 0, base + 8);
-    gr.addColorStop(0, top);
-    gr.addColorStop(1, FOG);
-    g.fillStyle = gr;
-    g.beginPath();
-    g.moveTo(0, H);
-    for (let x = 0; x <= W; x += 8) {
-      const n = (Math.sin(x * f1 + p1) * 0.6 + Math.sin(x * f2 + p2) * 0.4 + 1) / 2;
-      g.lineTo(x, base - amp * n);
-    }
-    g.lineTo(W, H);
-    g.closePath();
-    g.fill();
-  };
-  hill(H * 0.5, H * 0.09, 0.006, 0.017, 1.3, 4.1, '#2a2960');
-  hill(H * 0.52, H * 0.06, 0.009, 0.025, 2.7, 0.6, '#212056');
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
 }
 
 function softDisc(): THREE.CanvasTexture {
@@ -170,22 +100,7 @@ function cloudTexture(rand: () => number): THREE.CanvasTexture {
   return tex;
 }
 
-type ProcKind =
-  | 'pineTrunk'
-  | 'pineCrown'
-  | 'decidTrunk'
-  | 'decidCrown'
-  | 'birchTrunk'
-  | 'birchCrown'
-  | 'rock'
-  | 'bush'
-  | 'grass'
-  | 'fern'
-  | 'flower'
-  | 'mushStem'
-  | 'mushCap'
-  | 'stump'
-  | 'log';
+type ProcKind = ForestKind;
 
 interface ProcPlacement {
   kind: ProcKind;
@@ -234,10 +149,12 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   renderer.info.autoReset = false;
 
   const scene = new THREE.Scene();
-  scene.background = gradientSky();
+  scene.background = new THREE.Color(L.WORLD_FOG_COLOR); // fallback; the sky dome covers it
   scene.fog = new THREE.Fog(L.WORLD_FOG_COLOR, L.WORLD_FOG_NEAR, L.WORLD_FOG_FAR);
 
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 220);
+  const sky = createSky();
+  scene.add(sky.group);
   const curve = new THREE.CatmullRomCurve3(WAYPOINTS, false, 'catmullrom', 0.5);
 
   const pathCore = curve.getSpacedPoints(360);
@@ -281,6 +198,10 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     Math.hypot(x - campfire.x, z - campfire.z) >= L.CAMPFIRE_CLEARING + r &&
     !room.blocks(x, z, r) &&
     occupied.every((o) => Math.hypot(o.x - x, o.z - z) >= o.r + r);
+
+  // Project signposts claim their ground first, so trees and rocks keep clear of them.
+  const signs = createSignposts({ curve, claim, anisotropy: Math.min(4, renderer.capabilities.getMaxAnisotropy()) });
+  scene.add(signs.group);
 
   /** Sideways scatter along the extended path. `preferFar` biases acceptance toward the outer band. */
   const scatterSpot = (
@@ -425,62 +346,22 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     const placements: ProcPlacement[] = [];
     const push = (p: ProcPlacement) => placements.push(p);
 
+    // Every tree is one merged geometry (trunk + foliage) with baked vertex colours; the instance colour is
+    // only a light per-tree tint.
+    const tint = (amt = 0.14) => {
+      const k = 1 - rand() * amt;
+      return new THREE.Color(k * (0.95 + rand() * 0.1), k, k * (0.95 + rand() * 0.1));
+    };
     const placePine = (x: number, z: number, s: number, ry: number) => {
-      const trunk = varyColor(L.TREE_COLORS.pineTrunk, rand);
-      const needle = varyColor(L.TREE_COLORS.pineNeedle, rand);
-      push({ kind: 'pineTrunk', x, y: 0.7 * s, z, sx: 0.18 * s, sy: 1.4 * s, sz: 0.18 * s, ry, color: trunk });
-      for (let i = 0; i < 3; i++) {
-        const cs = (1.15 - i * 0.22) * s;
-        push({ kind: 'pineCrown', x, y: (1.35 + i * 0.85) * s, z, sx: cs, sy: 1.35 * s, sz: cs, ry, color: needle });
-      }
+      const k = 0.8 * s;
+      push({ kind: 'pine', x, y: 0, z, sx: k, sy: k * (0.9 + rand() * 0.25), sz: k, ry, color: tint() });
     };
     const placeDeciduous = (x: number, z: number, s: number, ry: number) => {
-      push({
-        kind: 'decidTrunk',
-        x,
-        y: 0.85 * s,
-        z,
-        sx: 0.2 * s,
-        sy: 1.7 * s,
-        sz: 0.2 * s,
-        ry,
-        color: varyColor(L.TREE_COLORS.deciduousTrunk, rand),
-      });
-      push({
-        kind: 'decidCrown',
-        x,
-        y: 2.35 * s,
-        z,
-        sx: 1.35 * s,
-        sy: 1.2 * s,
-        sz: 1.35 * s,
-        ry,
-        color: varyColor(L.TREE_COLORS.deciduousLeaf, rand),
-      });
+      const k = 0.95 * s;
+      push({ kind: 'decid', x, y: 0, z, sx: k, sy: k * (0.9 + rand() * 0.25), sz: k, ry, color: tint() });
     };
     const placeBirch = (x: number, z: number, s: number, ry: number) => {
-      push({
-        kind: 'birchTrunk',
-        x,
-        y: 1.35 * s,
-        z,
-        sx: 0.11 * s,
-        sy: 2.7 * s,
-        sz: 0.11 * s,
-        ry,
-        color: varyColor(L.TREE_COLORS.birchTrunk, rand),
-      });
-      push({
-        kind: 'birchCrown',
-        x,
-        y: 3.15 * s,
-        z,
-        sx: 0.7 * s,
-        sy: 1.55 * s,
-        sz: 0.7 * s,
-        ry,
-        color: varyColor(L.TREE_COLORS.birchLeaf, rand),
-      });
+      push({ kind: 'birch', x, y: 0, z, sx: s, sy: s * (0.9 + rand() * 0.25), sz: s, ry, color: tint(0.1) });
     };
 
     const plantTrees = (count: number, place: (x: number, z: number, s: number, ry: number) => void) => {
@@ -498,37 +379,60 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     plantTrees(L.COUNTS.deciduous, placeDeciduous);
     plantTrees(L.COUNTS.birch, placeBirch);
 
+    const rockColor = () => varyColor(L.PROP_COLORS_OUTDOOR.rock[(rand() * L.PROP_COLORS_OUTDOOR.rock.length) | 0], rand);
     let rocks = 0;
     while (rocks < L.COUNTS.rocks) {
-      const spot = scatterSpot(3.2, 22, 0.35);
+      const spot = scatterSpot(3.2, 22, 0.45);
       if (!spot) break;
-      claim(spot.x, spot.z, 0.45);
-      const s = varyScale(0.55, rand, L.PROP_SCALE_VAR);
+      claim(spot.x, spot.z, 0.55);
+      const s = varyScale(0.6, rand, L.PROP_SCALE_VAR);
       push({
-        kind: 'rock',
+        kind: rand() < 0.55 ? 'rockA' : 'rockB',
         x: spot.x,
-        y: 0.22 * s,
+        y: -0.04 * s,
         z: spot.z,
-        sx: s * (0.7 + rand() * 0.5),
-        sy: s * (0.45 + rand() * 0.4),
-        sz: s * (0.7 + rand() * 0.5),
+        sx: s * (0.8 + rand() * 0.6),
+        sy: s * (0.6 + rand() * 0.6),
+        sz: s * (0.8 + rand() * 0.6),
         ry: rand() * Math.PI * 2,
-        rx: rand() * 0.6,
-        rz: rand() * 0.6,
-        color: varyColor(L.PROP_COLORS_OUTDOOR.rock[(rand() * L.PROP_COLORS_OUTDOOR.rock.length) | 0], rand),
+        color: rockColor(),
       });
       rocks++;
+    }
+
+    // Boulder clusters: three to five larger rocks together.
+    for (let i = 0; i < L.COUNTS.boulderClusters; i++) {
+      const spot = scatterSpot(6, 28, 1.6);
+      if (!spot) continue;
+      claim(spot.x, spot.z, 1.8);
+      const n = 3 + ((rand() * 3) | 0);
+      for (let j = 0; j < n; j++) {
+        const a = rand() * Math.PI * 2;
+        const rr = rand() * 1.0;
+        const s = 0.8 + rand() * 0.7;
+        push({
+          kind: rand() < 0.7 ? 'rockA' : 'rockB',
+          x: spot.x + Math.cos(a) * rr,
+          y: -0.05 * s,
+          z: spot.z + Math.sin(a) * rr,
+          sx: s,
+          sy: s * (0.7 + rand() * 0.5),
+          sz: s * (0.8 + rand() * 0.4),
+          ry: rand() * Math.PI * 2,
+          color: rockColor(),
+        });
+      }
     }
 
     for (let i = 0; i < L.COUNTS.bushes; i++) {
       const spot = scatterSpot(3.2, 18, 0.4);
       if (!spot) continue;
       claim(spot.x, spot.z, 0.5);
-      const s = varyScale(0.7, rand, L.PROP_SCALE_VAR);
+      const s = varyScale(0.65, rand, L.PROP_SCALE_VAR);
       push({
         kind: 'bush',
         x: spot.x,
-        y: 0.35 * s,
+        y: 0.3 * s,
         z: spot.z,
         sx: s * 1.1,
         sy: s * 0.7,
@@ -541,28 +445,62 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     for (let i = 0; i < L.COUNTS.grass; i++) {
       const spot = scatterSpot(3.05, 12, 0.12);
       if (!spot) continue;
-      const s = varyScale(0.35, rand, L.PROP_SCALE_VAR);
+      const s = varyScale(0.55, rand, 0.35);
       push({
         kind: 'grass',
         x: spot.x,
-        y: 0.22 * s,
+        y: 0,
         z: spot.z,
-        sx: 0.12 * s,
-        sy: 0.45 * s,
-        sz: 0.12 * s,
+        sx: s,
+        sy: s,
+        sz: s,
         ry: rand() * Math.PI * 2,
         color: varyColor(L.PROP_COLORS_OUTDOOR.grass[(rand() * L.PROP_COLORS_OUTDOOR.grass.length) | 0], rand),
+      });
+    }
+
+    for (let i = 0; i < L.COUNTS.ferns; i++) {
+      const spot = scatterSpot(3.1, 16, 0.3);
+      if (!spot) continue;
+      const s = varyScale(0.7, rand, 0.3);
+      push({
+        kind: 'fern',
+        x: spot.x,
+        y: 0,
+        z: spot.z,
+        sx: s,
+        sy: s,
+        sz: s,
+        ry: rand() * Math.PI * 2,
+        color: varyColor(L.PROP_COLORS_OUTDOOR.fern[(rand() * L.PROP_COLORS_OUTDOOR.fern.length) | 0], rand),
+      });
+    }
+
+    for (let i = 0; i < L.COUNTS.mushrooms; i++) {
+      const spot = scatterSpot(3.6, 20, 0.2);
+      if (!spot) continue;
+      const s = varyScale(0.9, rand, 0.35);
+      push({
+        kind: 'mushroom',
+        x: spot.x,
+        y: 0,
+        z: spot.z,
+        sx: s,
+        sy: s,
+        sz: s,
+        ry: rand() * Math.PI * 2,
+        color: varyColor(0xffffff, rand, 0.08),
       });
     }
 
     for (let i = 0; i < L.COUNTS.flowers; i++) {
       const spot = scatterSpot(3.1, 14, 0.1);
       if (!spot) continue;
-      const s = varyScale(0.18, rand, L.PROP_SCALE_VAR);
+      const s = varyScale(0.8, rand, 0.3);
       push({
         kind: 'flower',
         x: spot.x,
-        y: 0.2 * s + 0.12,
+        y: 0,
         z: spot.z,
         sx: s,
         sy: s,
@@ -621,25 +559,9 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     minZ = Math.min(minZ, campfire.z) - L.GROUND_MARGIN;
     maxZ = Math.max(maxZ, campfire.z) + L.GROUND_MARGIN;
 
-    const geos: Record<ProcKind, THREE.BufferGeometry> = {
-      pineTrunk: new THREE.CylinderGeometry(1, 1.15, 1, 5),
-      pineCrown: new THREE.ConeGeometry(1, 1, 6),
-      decidTrunk: new THREE.CylinderGeometry(1, 1.2, 1, 5),
-      decidCrown: new THREE.IcosahedronGeometry(1, 0),
-      birchTrunk: new THREE.CylinderGeometry(1, 1.05, 1, 5),
-      birchCrown: new THREE.IcosahedronGeometry(1, 0),
-      rock: new THREE.IcosahedronGeometry(1, 0),
-      bush: new THREE.IcosahedronGeometry(1, 0),
-      grass: new THREE.ConeGeometry(1, 1, 4),
-      fern: new THREE.ConeGeometry(1, 1, 4),
-      flower: new THREE.SphereGeometry(1, 5, 4),
-      mushStem: new THREE.CylinderGeometry(1, 1, 1, 5),
-      mushCap: new THREE.SphereGeometry(1, 6, 4),
-      stump: new THREE.CylinderGeometry(1, 1.15, 1, 6),
-      log: new THREE.CylinderGeometry(1, 1, 1, 6),
-    };
+    const geos = buildProcGeometries();
     Object.values(geos).forEach((g) => disposables.push(g));
-    const lit = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, flatShading: true });
+    const lit = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, flatShading: true, vertexColors: true });
     disposables.push(lit);
 
     const cell = L.CHUNK_SIZE;
@@ -696,16 +618,13 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     }
   }
 
-  const groundW = maxX - minX;
-  const groundD = maxZ - minZ;
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(groundW, groundD),
-    new THREE.MeshLambertMaterial({ color: 0x3a5f55 }),
+    buildGround(minX, maxX, minZ, maxZ, distToPath, occupied),
+    new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }),
   );
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.set((minX + maxX) / 2, 0, (minZ + maxZ) / 2);
   scene.add(ground);
   disposables.push(ground.geometry, ground.material as THREE.Material);
+  disposables.push(signs);
 
   const dirt = createDirtPath([...pathCore, ...room.routePoints], campfire);
   scene.add(dirt.group);
@@ -990,6 +909,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
       gazeAim.set(campfire.x - endTan.z * side, pos.y - dist * Math.tan(pitch), campfire.z + endTan.x * side);
       look.lerp(gazeAim, wFire);
     }
+    signs.dolly(p, camera.aspect, motion, dt, pos, look);
     if (tThrone > 0) {
       room.cameraAt(tThrone, pos);
       const fdist = Math.max(Math.hypot(campfire.x - pos.x, campfire.z - pos.z), 0.5);
@@ -999,6 +919,8 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     }
     camera.position.copy(pos);
     camera.lookAt(look);
+    sky.update(camera, pixelRatio);
+    signs.project(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
     if (tThrone > 0) room.projectBook(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
 
     sun.position.set(pos.x + 25, 40, pos.z + 15);
@@ -1085,6 +1007,9 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
 
   return {
     resize,
+    setProjectSigns(items) {
+      signs.setContent(items);
+    },
     render(progress) {
       lastProgress = Math.min(Math.max(progress, 0), 1);
       draw();
@@ -1102,7 +1027,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
       });
       disposables.forEach((d) => d.dispose());
       kit?.dispose();
-      (scene.background as THREE.Texture).dispose();
+      sky.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
     },

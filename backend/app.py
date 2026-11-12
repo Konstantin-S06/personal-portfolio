@@ -10,6 +10,7 @@ import hashlib
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from db import init_db, get_db_connection, IS_POSTGRES
+from contact_email import notify_contact, is_valid_email
 from project_validation import (
     validate_project,
     highlights_to_list,
@@ -292,8 +293,8 @@ def submit_contact():
         if len(name) > 100 or len(email) > 100 or len(message) > 1000:
             return jsonify({'error': 'Input too long'}), 400
         
-        if '@' not in email:
-            return jsonify({'error': 'Invalid email'}), 400
+        if not is_valid_email(email):
+            return jsonify({'error': 'Please enter a valid email address.'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -316,7 +317,9 @@ def submit_contact():
         
         conn.commit()
         conn.close()
-        
+
+        notify_contact(name, email, message, contact_id)
+
         return jsonify({
             'message': 'Contact form submitted successfully',
             'contact_id': contact_id

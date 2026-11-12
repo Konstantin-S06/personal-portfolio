@@ -1105,3 +1105,12 @@ section.hero .btn-secondary:hover {
 .book-ui.on-book .chat-chip:nth-child(2) { top: 403.3px; }
 .book-ui.on-book .chat-chip:nth-child(3) { top: 422.5px; }
 .book-ui.on-book .chat-chip:focus-visible { opacity: 1; background: rgba(27, 89, 133, 0.12); outline: 2px solid #2a8a80; }
+
+/* ==== Project signposts: invisible links over boards painted in the 3D scene (boards.ts / SignControls.tsx) ==== */
+.panel-sign { transform: none !important; padding: 0; overflow: hidden; }
+/* a 1024x682 sheet that the Stage code warps onto the board's screen corners */
+.sign-ui { position: absolute; left: 0; top: 0; width: 1024px; height: 682px; margin: 0; transform-origin: 0 0; opacity: 0; pointer-events: none; text-shadow: none; }
+.sign-ui.on-sign { opacity: 1; }
+.sign-hit { position: absolute; display: block; border-radius: 10px; }
+.panel-project.active .sign-ui.on-sign .sign-hit { pointer-events: auto; cursor: pointer; }
+.sign-hit:focus-visible { outline: 3px solid #d9ae50; outline-offset: 3px; }

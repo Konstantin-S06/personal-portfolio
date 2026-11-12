@@ -13,7 +13,7 @@ const smooth = (a: number, b: number, x: number) => {
 };
 
 function dirtTexture(kind: 'strip' | 'disc'): THREE.CanvasTexture {
-  const S = 128;
+  const S = 256;
   const canvas = document.createElement('canvas');
   canvas.width = S;
   canvas.height = S;
@@ -25,11 +25,16 @@ function dirtTexture(kind: 'strip' | 'disc'): THREE.CanvasTexture {
     for (let x = 0; x < S; x++) {
       const nx = (x / (S - 1)) * 2 - 1;
       const ny = (y / (S - 1)) * 2 - 1;
-      const edge = kind === 'strip' ? Math.abs(nx) : Math.hypot(nx, ny);
-      const alpha = 1 - smooth(0.6, 1, edge);
+      // Ragged, noise-bitten edge (integer frequencies keep the strip tileable) with a short soft fade.
+      const wob =
+        kind === 'strip'
+          ? 0.07 * Math.sin((Math.PI * 2 * 1 * y) / S + 1.3) + 0.05 * Math.sin((Math.PI * 2 * 2 * y) / S + 0.4)
+          : 0.05 * Math.sin(Math.atan2(ny, nx) * 3 + 0.5) + 0.03 * Math.sin(Math.atan2(ny, nx) * 5);
+      const edge = (kind === 'strip' ? Math.abs(nx) : Math.hypot(nx, ny)) + wob + (rnd() - 0.5) * 0.02;
+      const alpha = 1 - smooth(0.5, 0.98, edge);
       // Integer sine frequencies keep the strip tileable along its length.
       const blot = 0.92 + 0.08 * Math.sin((Math.PI * 2 * 3 * y) / S + x * 0.19) * Math.sin((Math.PI * 2 * 2 * x) / S);
-      const v = (0.76 + 0.24 * rnd()) * blot;
+      const v = (0.76 + 0.24 * rnd()) * blot * (1 - 0.22 * smooth(0.5, 0.9, edge));
       const o = (y * S + x) * 4;
       img.data[o] = 98 * v;
       img.data[o + 1] = 76 * v;

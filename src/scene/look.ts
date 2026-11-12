@@ -41,13 +41,13 @@ export const COUNTS = {
   bushes: 180,
   grass: 350,
   ferns: 140,
-  flowers: 0,      // was 140: fewer floating orbs
-  mushrooms: 30,
+  flowers: 20, // small stemmed flowers near the path
+  mushrooms: 0,
   stumps: 28,
   logs: 22,
   boulderClusters: 10, // each cluster places 3–5 boulders
   fireflies: 220,
-  mistPlanes: 8,
+  mistPlanes: 14,
   lightShafts: 0,
 };
 
@@ -66,7 +66,7 @@ export const FIREFLY_OPACITY = 0.95;
 export const FIREFLY_DRIFT = 0.35;
 export const FIREFLY_PULSE = 0.6;
 
-export const MIST_OPACITY_OUTDOOR = 0.10;
+export const MIST_OPACITY_OUTDOOR = 0.12;
 export const MIST_LIFT_OUTDOOR = 0.35;
 export const MIST_SCROLL_OUTDOOR = 0.004;
 export const MIST_SIZE_OUTDOOR: [number, number] = [18, 28];
@@ -286,3 +286,30 @@ export const SWAY_SPEED = 0.8; // radians per second, base
 export const ROLL_MAX_DEG = 1.5;
 export const ROLL_DEG_PER_RAD = 3; // degrees of roll per radian of path heading change across ROLL_WINDOW
 export const ROLL_WINDOW = 2.5; // arc length either side of the camera used to measure the turn
+
+// ---- 10. World-space sky (sky.ts) ----------------------------------------------------------------------
+export const SKY_TEX_W = 2048; // equirectangular width; height is half (dome) / SKY_RING_TEX_H (ring)
+export const SKY_DOME_RADIUS = 160; // must stay inside the camera far plane (220)
+export const SKY_STAR_COUNT = 420; // spread over the whole sphere
+export const SKY_STAR_SIZE_PX: [number, number] = [1.0, 2.0]; // CSS pixels, min..max (most stars are near the min)
+export const SKY_MOON_AZIMUTH_DEG = 25; // 0 = straight down the path (-z), positive = to the right
+export const SKY_MOON_ELEV_DEG = 24;
+export const SKY_MOON_RADIUS_DEG = 1.6;
+export const SKY_RING_RADIUS = 120; // silhouette ring: hills and tree line, beyond the fog far plane
+export const SKY_RING_HEIGHT = 26;
+export const SKY_RING_SINK = 3; // ring extends this far below y = 0
+export const SKY_RING_TEX_H = 256;
+/** true: sky is tone-mapped like the fogged forest, so the horizon matches distant fog exactly. */
+export const SKY_TONE_MAPPED = true;
+
+// ---- 11. Wooden signposts (boards.ts) ------------------------------------------------------------------
+export const SIGN_OFFSET = 3.0; // sign centre, sideways from the path (alternates left and right)
+export const SIGN_CLAIM = 1.9; // ground reserved around each sign so scatter keeps clear
+export const SIGN_BOARD_Y = 2.05; // height of the board centre
+export const SIGN_YAW = 0.26; // radians the board turns toward visitors still approaching along the path
+export const SIGN_DIST = 2.75; // camera distance from the board when parked (wider screens never go closer)
+export const SIGN_EMISSIVE = 0.3; // lettering stays readable at dusk; lower = more in-world, higher = brighter
+export const SIGN_HOLD = 0.06; // fraction of the gap to the neighbouring stop where the camera is fully parked
+export const SIGN_BLEND = 0.5; // fraction of the gap over which the camera eases to and from the sign
+export const SIGN_EASE = 0.5; // seconds: time constant of the camera's glide to and from a sign (bigger = slower)
+export const SIGN_FRAME_BRIGHT = 1.7; // multiplies the frame's wood colours so posts and roof are not black at dusk
