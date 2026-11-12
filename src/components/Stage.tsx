@@ -8,7 +8,9 @@ import { layoutRanges } from '../lib/stops';
 import { cancelScrollTween, tweenScrollTo } from '../lib/navigator';
 import { ChapterContent } from './ChapterContent';
 import { SignControls } from './SignControls';
-import { signContent, type SignContent } from '../lib/signContent';
+import { JobNotesControls, JobTechText } from './JobBoardControls';
+import { jobBoardContent, signContent, type JobBoardContent, type SignContent } from '../lib/signContent';
+import { techStack } from '../data/techstack';
 
 const SCRUB_SECONDS = 0.8; // exponential time constant: camera trails the scrollbar by about this much
 const DEBUG_HUD = new URLSearchParams(window.location.search).get('debug') === '1';
@@ -45,6 +47,14 @@ function signData(chapters: Chapter[], projects: Project[]): SignContent[] {
   });
 }
 
+/** Content for the job board that replaces the flat Tech Stack and More Projects cards. */
+function jobBoardData(chapters: Chapter[], projects: Project[]): JobBoardContent | null {
+  const tech = chapters.find((c) => c.kind === 'tech');
+  if (!tech) return null;
+  const more = chapters.find((c) => c.kind === 'more');
+  return jobBoardContent(techStack, more ? remainingProjects(chapters, projects) : [], tech.title, more?.title ?? '');
+}
+
 export function Stage({ navRef, chapters, projects }: StageProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
@@ -60,6 +70,10 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
   const signsRef = useRef<SignContent[]>([]);
   signsRef.current = signData(chapters, projects);
   const [signs, setSigns] = useState(false); // true once the scene has wooden signposts: the flat project cards then step aside
+  const jobContent = jobBoardData(chapters, projects);
+  const jobRef = useRef<JobBoardContent | null>(null);
+  jobRef.current = jobContent;
+  const [job, setJob] = useState(false); // true once the scene has the job board: the flat Tech Stack and More Projects cards then step aside
 
   // The three.js scene is a separate chunk, fetched only here (pinned mode). Flat-mode users never load it
   // (and never download nature GLBs). The canvas is created per effect run so StrictMode remounts get a fresh
@@ -92,6 +106,8 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
       world.setLabels?.(labelsRef.current);
       world.setProjectSigns?.(signsRef.current);
       setSigns(typeof world.setProjectSigns === 'function');
+      world.setJobBoard?.(jobRef.current);
+      setJob(typeof world.setJobBoard === 'function');
       world.resize();
       setLoadPct(100);
       setLoading(false);
@@ -104,6 +120,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
       worldRef.current?.dispose();
       worldRef.current = null;
       setSigns(false);
+      setJob(false);
       canvas.remove();
     };
   }, []);
@@ -112,6 +129,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
   useEffect(() => {
     worldRef.current?.setLabels?.(labelsRef.current);
     worldRef.current?.setProjectSigns?.(signsRef.current);
+    worldRef.current?.setJobBoard?.(jobRef.current);
     redrawRef.current?.();
   }, [chapters, projects]);
 
@@ -277,15 +295,20 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
           {chapters.map((c, i) => {
             const projectIndex = c.kind === 'project' ? ++projectNo : undefined;
             const sign = signs && projectIndex ? signsRef.current.find((x) => x.stopId === `project-${projectIndex}`) : undefined;
+            const jobPart = job && jobContent ? (c.kind === 'tech' ? 'tech' : c.kind === 'more' ? 'notes' : null) : null;
             return (
               <div
-                className={`panel${c.kind === 'project' ? ' panel-project' : ''}${sign ? ' panel-sign' : ''}${c.kind === 'more' ? ' panel-more' : ''}${c.kind === 'cta' ? ' panel-cta' : ''}${c.kind === 'chat' ? ' panel-chat' : ''}`}
+                className={`panel${c.kind === 'project' ? ' panel-project' : ''}${sign ? ' panel-sign' : ''}${jobPart ? ' panel-job' : ''}${c.kind === 'more' && !jobPart ? ' panel-more' : ''}${c.kind === 'cta' ? ' panel-cta' : ''}${c.kind === 'chat' ? ' panel-chat' : ''}`}
                 id={c.id}
                 key={c.id}
                 ref={(el) => { panelRefs.current[i] = el; }}
               >
                 {sign ? (
                   <SignControls stopId={sign.stopId} content={sign} />
+                ) : jobPart === 'tech' && jobContent ? (
+                  <JobTechText content={jobContent} />
+                ) : jobPart === 'notes' && jobContent ? (
+                  <JobNotesControls content={jobContent} />
                 ) : (
                 <ChapterContent
                   kind={c.kind}

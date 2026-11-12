@@ -10,7 +10,8 @@ import { buildProcGeometries, buildGround, type ForestKind } from './forestKit';
 import { createThroneRoom } from './throneRoom';
 import { createSky } from './sky';
 import { createSignposts } from './boards';
-import type { SignContent } from '../lib/signContent';
+import { createJobBoard } from './jobBoard';
+import type { JobBoardContent, SignContent } from '../lib/signContent';
 import { walkProgress, throneProgress } from '../lib/timeline';
 
 export interface World {
@@ -21,6 +22,8 @@ export interface World {
   setLabels?(labels: BannerLabel[]): void;
   /** Content for the wooden project signposts. Safe to call repeatedly. Its presence tells the UI the signs exist. */
   setProjectSigns?(items: SignContent[]): void;
+  /** Content for the job board (Tech Stack + More Projects). Null clears it. Its presence tells the UI the board exists. */
+  setJobBoard?(content: JobBoardContent | null): void;
   dispose(): void;
 }
 
@@ -200,8 +203,11 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     occupied.every((o) => Math.hypot(o.x - x, o.z - z) >= o.r + r);
 
   // Project signposts claim their ground first, so trees and rocks keep clear of them.
-  const signs = createSignposts({ curve, claim, anisotropy: Math.min(4, renderer.capabilities.getMaxAnisotropy()) });
+  const anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+  const signs = createSignposts({ curve, claim, anisotropy });
   scene.add(signs.group);
+  const jobBoard = createJobBoard({ curve, claim, anisotropy });
+  scene.add(jobBoard.group);
 
   /** Sideways scatter along the extended path. `preferFar` biases acceptance toward the outer band. */
   const scatterSpot = (
@@ -624,7 +630,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   );
   scene.add(ground);
   disposables.push(ground.geometry, ground.material as THREE.Material);
-  disposables.push(signs);
+  disposables.push(signs, jobBoard);
 
   const dirt = createDirtPath([...pathCore, ...room.routePoints], campfire);
   scene.add(dirt.group);
@@ -910,6 +916,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
       look.lerp(gazeAim, wFire);
     }
     signs.dolly(p, camera.aspect, motion, dt, pos, look);
+    jobBoard.dolly(p, camera.aspect, motion, dt, pos, look);
     if (tThrone > 0) {
       room.cameraAt(tThrone, pos);
       const fdist = Math.max(Math.hypot(campfire.x - pos.x, campfire.z - pos.z), 0.5);
@@ -921,6 +928,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     camera.lookAt(look);
     sky.update(camera, pixelRatio);
     signs.project(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
+    jobBoard.project(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
     if (tThrone > 0) room.projectBook(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
 
     sun.position.set(pos.x + 25, 40, pos.z + 15);
@@ -1009,6 +1017,9 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     resize,
     setProjectSigns(items) {
       signs.setContent(items);
+    },
+    setJobBoard(content) {
+      jobBoard.setContent(content);
     },
     render(progress) {
       lastProgress = Math.min(Math.max(progress, 0), 1);

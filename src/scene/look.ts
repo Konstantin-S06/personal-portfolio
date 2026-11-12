@@ -313,3 +313,16 @@ export const SIGN_HOLD = 0.06; // fraction of the gap to the neighbouring stop w
 export const SIGN_BLEND = 0.5; // fraction of the gap over which the camera eases to and from the sign
 export const SIGN_EASE = 0.5; // seconds: time constant of the camera's glide to and from a sign (bigger = slower)
 export const SIGN_FRAME_BRIGHT = 1.7; // multiplies the frame's wood colours so posts and roof are not black at dusk
+
+// ---- 12. Job board (jobBoard.ts): Tech Stack ledger on the left half, pinned notes on the right ----------------
+export const JOB_SIDE = -1; // -1 = left of the path. On the left the board's +x runs along the walking direction, so the tech half is met first and the notes second
+export const JOB_OFFSET = 3.4; // board centre, sideways from the path (the board is two signs wide, so it stands a little further out)
+export const JOB_CLAIM = 1.9; // ground reserved around each third of the board so scatter keeps clear
+export const JOB_SPLIT = 0.36; // share of the sheet's width given to the tech ledger; the rest holds the notes
+export const JOB_DIST = 2.35; // camera distance from the board when parked (narrower screens never go closer than JOB_VIEW_K / aspect)
+export const JOB_VIEW_K = 4.0;
+export const JOB_EMISSIVE = SIGN_EMISSIVE;
+export const JOB_HOLD = 0.06; // as SIGN_HOLD / SIGN_BLEND / SIGN_EASE, for the board as a whole
+export const JOB_BLEND = 0.5;
+export const JOB_EASE = 0.5; // seconds: time constant of the glide onto and off the board, and of the slide between its halves
+export const JOB_SLIDE_HOLD = 0.12; // fraction of the tech-to-notes gap spent parked at each half before the camera slides across

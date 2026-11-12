@@ -16,26 +16,26 @@ import type { BoardHit, SignContent } from '../lib/signContent';
  * job board, Home, About and the contact paper.
  */
 
-const BW = 2.6; // face width, world units
-const BH = (BW * BOARD_H_PX) / BOARD_W_PX;
-const CY = L.SIGN_BOARD_Y;
-const FACE_Z = 0.057; // just in front of the back plate
+export const BW = 2.6; // face width, world units
+export const BH = (BW * BOARD_H_PX) / BOARD_W_PX;
+export const CY = L.SIGN_BOARD_Y;
+export const FACE_Z = 0.057; // just in front of the back plate
 
-const FONT = L.BANNER_FONT_FALLBACK;
-const PAINT = '#e6d5a4'; // warm bone paint: headings
-const INK = '#2b1d12'; // ink on the paper notice
-const RED = '#7b2a17'; // oxide red: labels and dashes on paper
-const PAINT_DIM = '#c9b27e'; // secondary lettering
-const GOLD = '#d4a14c'; // tarnished headings, labels, rules
-const GROOVE = 'rgba(14,7,3,0.75)'; // routed grooves and carved edges
-const M = 68; // text margin on the board
-const TOP = 62;
-const BOTTOM = 60;
-const INSET = 24; // routed border distance from the board edge
+export const FONT = L.BANNER_FONT_FALLBACK;
+export const PAINT = '#e6d5a4'; // warm bone paint: headings
+export const INK = '#1f140b'; // ink on the paper notice
+export const RED = '#7b2a17'; // oxide red: labels and dashes on paper
+export const PAINT_DIM = '#c9b27e'; // secondary lettering
+export const GOLD = '#d4a14c'; // tarnished headings, labels, rules
+export const GROOVE = 'rgba(14,7,3,0.75)'; // routed grooves and carved edges
+export const M = 68; // text margin on the board
+export const TOP = 62;
+export const BOTTOM = 60;
+export const INSET = 24; // routed border distance from the board edge
 
 // ---- small helpers ----------------------------------------------------------------------------------------
 
-function prng(seed: number) {
+export function prng(seed: number) {
   let s = seed >>> 0;
   return () => {
     s = (s * 1664525 + 1013904223) >>> 0;
@@ -43,11 +43,11 @@ function prng(seed: number) {
   };
 }
 
-const spacing = (ctx: CanvasRenderingContext2D, v: string) => {
+export const spacing = (ctx: CanvasRenderingContext2D, v: string) => {
   (ctx as unknown as { letterSpacing?: string }).letterSpacing = v;
 };
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -79,12 +79,42 @@ export function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: num
   return kept;
 }
 
+/** Lettering carved or painted into wood: a pale rim below, a dark cut above. Uses the ctx's font, fill and alignment. */
+export function carveText(ctx: CanvasRenderingContext2D, s: string, x: number, y: number) {
+  const fs = ctx.fillStyle;
+  ctx.save();
+  ctx.shadowColor = 'transparent';
+  ctx.fillStyle = 'rgba(255,215,160,0.2)';
+  ctx.fillText(s, x, y + 1.5);
+  ctx.shadowColor = 'rgba(8,4,1,0.9)';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = -1.6;
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = fs;
+  ctx.fillText(s, x, y);
+  ctx.restore();
+}
+
+/** Ink pressed into paper: a pale rim below the stroke, a little bleed, a little fade. */
+export function inkText(ctx: CanvasRenderingContext2D, s: string, x: number, y: number) {
+  const fs = ctx.fillStyle;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,246,220,0.45)';
+  ctx.fillText(s, x, y + 1);
+  ctx.shadowColor = 'rgba(43,29,18,0.45)';
+  ctx.shadowBlur = 1.2;
+  ctx.globalAlpha = 0.93;
+  ctx.fillStyle = fs;
+  ctx.fillText(s, x, y);
+  ctx.restore();
+}
+
 // ---- painting: wood and content ---------------------------------------------------------------------------
 
 /** Weathered planks with grain, knots and nails, in the current (translated) cell. Mid-tone so paint reads on it. */
-export function paintWood(ctx: CanvasRenderingContext2D, rand: () => number) {
-  const W = BOARD_W_PX;
-  const H = BOARD_H_PX;
+export function paintWood(ctx: CanvasRenderingContext2D, rand: () => number, W = BOARD_W_PX, H = BOARD_H_PX) {
+  const scale = W / BOARD_W_PX; // feature counts follow the width, so a wider sheet is not sparser
   const planks = 4;
   const raw = Array.from({ length: planks }, () => 0.85 + rand() * 0.3);
   const sum = raw.reduce((a, b) => a + b, 0);
@@ -101,7 +131,7 @@ export function paintWood(ctx: CanvasRenderingContext2D, rand: () => number) {
           : `hsl(${24 + rand() * 8}, ${28 + rand() * 8}%, ${31 + rand() * 6}%)`; // brown
     ctx.fillRect(0, y, W, ph + 1);
     // dark water stains and pale sun patches
-    for (let s = 0; s < 5; s++) {
+    for (let s = 0; s < Math.round(5 * scale); s++) {
       const sx = rand() * W;
       const sy = y + rand() * ph;
       const sr = 40 + rand() * 120;
@@ -112,7 +142,7 @@ export function paintWood(ctx: CanvasRenderingContext2D, rand: () => number) {
       ctx.fillStyle = sg;
       ctx.fillRect(sx - sr, Math.max(y, sy - sr), sr * 2, Math.min(ph, sr * 2));
     }
-    for (let j = 0; j < 30; j++) {
+    for (let j = 0; j < Math.round(30 * scale); j++) {
       const gy = y + rand() * ph;
       const amp = 0.8 + rand() * 2.2;
       const f = 0.004 + rand() * 0.012;
@@ -156,12 +186,12 @@ export function paintWood(ctx: CanvasRenderingContext2D, rand: () => number) {
       ctx.fillRect(0, y + 1.5, W, 1.5);
     }
   }
-  for (let i = 0; i < 160; i++) {
+  for (let i = 0; i < Math.round(160 * scale); i++) {
     ctx.fillStyle = `rgba(255,235,200,${0.02 + rand() * 0.04})`;
     ctx.fillRect(rand() * W, rand() * H, 6 + rand() * 30, 1 + rand() * 1.5);
   }
   // scratches, knife cuts and gouges
-  for (let i = 0; i < 38; i++) {
+  for (let i = 0; i < Math.round(38 * scale); i++) {
     const x0 = rand() * W;
     const y0 = rand() * H;
     const len = 20 + rand() * 120;
@@ -179,7 +209,7 @@ export function paintWood(ctx: CanvasRenderingContext2D, rand: () => number) {
     ctx.lineTo(x0 + Math.cos(a) * len, y0 + 1.5 + Math.sin(a) * len);
     ctx.stroke();
   }
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < Math.round(9 * scale); i++) {
     ctx.fillStyle = `rgba(12,6,3,${0.45 + rand() * 0.3})`;
     ctx.beginPath();
     ctx.ellipse(rand() * W, rand() * H, 5 + rand() * 12, 2 + rand() * 4, (rand() - 0.5) * 0.8, 0, Math.PI * 2);
@@ -204,7 +234,7 @@ export function paintWood(ctx: CanvasRenderingContext2D, rand: () => number) {
     ctx.fillRect(0, 0, W, H);
   }
   // soot streaks running down from the top edge
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < Math.round(14 * scale); i++) {
     const sx = rand() * W;
     const sg = ctx.createLinearGradient(0, 0, 0, 40 + rand() * 110);
     sg.addColorStop(0, `rgba(8,4,2,${0.2 + rand() * 0.2})`);
@@ -213,7 +243,7 @@ export function paintWood(ctx: CanvasRenderingContext2D, rand: () => number) {
     ctx.fillRect(sx, 0, 3 + rand() * 10, 150);
   }
   // splintered, worn edges
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < Math.round(60 * scale); i++) {
     const side = (rand() * 4) | 0;
     const t = rand();
     const px = side < 2 ? t * W : side === 2 ? 0 : W;
@@ -226,9 +256,7 @@ export function paintWood(ctx: CanvasRenderingContext2D, rand: () => number) {
 }
 
 /** A routed groove border cut into the planks (dark channel with a lit lip) and iron nails in the corners. */
-export function paintInset(ctx: CanvasRenderingContext2D, rand: () => number) {
-  const W = BOARD_W_PX;
-  const H = BOARD_H_PX;
+export function paintInset(ctx: CanvasRenderingContext2D, rand: () => number, W = BOARD_W_PX, H = BOARD_H_PX) {
   const x = INSET;
   const y = INSET;
   const w = W - 2 * INSET;
@@ -295,12 +323,11 @@ export function paintInset(ctx: CanvasRenderingContext2D, rand: () => number) {
 }
 
 /** Final wear over everything painted: grain and scuffs run across the lettering so paint and wood are one surface. */
-function weather(ctx: CanvasRenderingContext2D, rand: () => number) {
-  const W = BOARD_W_PX;
-  const H = BOARD_H_PX;
+export function weather(ctx: CanvasRenderingContext2D, rand: () => number, W = BOARD_W_PX, H = BOARD_H_PX) {
+  const scale = W / BOARD_W_PX; // feature counts follow the width, so a wider sheet is not sparser
   ctx.save();
   ctx.shadowColor = 'transparent';
-  for (let j = 0; j < 46; j++) {
+  for (let j = 0; j < Math.round(46 * scale); j++) {
     const gy = rand() * H;
     const amp = 0.8 + rand() * 2;
     const f = 0.004 + rand() * 0.01;
@@ -315,16 +342,16 @@ function weather(ctx: CanvasRenderingContext2D, rand: () => number) {
     }
     ctx.stroke();
   }
-  for (let i = 0; i < 900; i++) {
+  for (let i = 0; i < Math.round(900 * scale); i++) {
     ctx.fillStyle = `rgba(40,22,10,${0.12 + rand() * 0.2})`;
     ctx.fillRect(rand() * W, rand() * H, 1 + rand() * 3, 1 + rand() * 2);
   }
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < Math.round(40 * scale); i++) {
     ctx.fillStyle = `rgba(40,22,10,${0.1 + rand() * 0.14})`;
     ctx.fillRect(rand() * W, rand() * H, 14 + rand() * 60, 1 + rand() * 2);
   }
   // faded, rubbed-off paint: patches where the lettering has worn thin, plus fine flaking
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < Math.round(9 * scale); i++) {
     const fx = M + rand() * (W - 2 * M);
     const fy = TOP + rand() * (H - TOP - BOTTOM);
     const fr = 30 + rand() * 90;
@@ -334,7 +361,7 @@ function weather(ctx: CanvasRenderingContext2D, rand: () => number) {
     ctx.fillStyle = fg;
     ctx.fillRect(fx - fr, fy - fr, fr * 2, fr * 2);
   }
-  for (let i = 0; i < 700; i++) {
+  for (let i = 0; i < Math.round(700 * scale); i++) {
     ctx.fillStyle = `rgba(34,20,10,${0.35 + rand() * 0.35})`;
     ctx.fillRect(M + rand() * (W - 2 * M), TOP + rand() * (H - TOP - BOTTOM), 1 + rand() * 2.2, 1 + rand() * 1.6);
   }
@@ -344,7 +371,7 @@ function weather(ctx: CanvasRenderingContext2D, rand: () => number) {
 const COLO_FONT = `700 15px ${FONT}`;
 const COLO_LH = 23;
 
-interface PaperOpts {
+export interface PaperOpts {
   /** Corner indices (0 TL, 1 TR, 2 BR, 3 BL) that get an iron tack. */
   tacks: number[];
   /** Lift the bottom-left corner off the board. */
@@ -358,7 +385,7 @@ interface PaperOpts {
  * flat) and wide along the middle of each edge (bowing away from the planks); an optional curled corner lifts off with
  * a sharper contact shadow.
  */
-function paintPaper(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, rand: () => number, o: PaperOpts) {
+export function paintPaper(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, rand: () => number, o: PaperOpts) {
   const pts: [number, number][] = [];
   const step = 34;
   const j = () => (rand() - 0.5) * 5;
@@ -603,14 +630,14 @@ export function paintProject(ctx: CanvasRenderingContext2D, c: SignContent): Boa
       T(line, W / 2 - 4, y);
       y += tSize * 0.1;
     }
-    const meta = [c.date, c.category].filter(Boolean).join('  ·  ');
+    // category plus the context line (it carries the date range); the plain month/year is only a fallback
     ctx.font = `italic 21px ${FONT}`;
     ctx.fillStyle = PAINT_DIM;
-    const withCtx = c.context ? `${meta}  ·  ${c.context}` : meta;
-    const metaLine = ctx.measureText(withCtx).width <= maxW ? withCtx : meta;
-    if (metaLine) {
+    const metaFull = [c.category, c.context ?? c.date].filter(Boolean).join('  ·  ');
+    const meta = metaFull ? wrapLines(ctx, metaFull, maxW, 1)[0] : '';
+    if (meta) {
       y += 28;
-      T(metaLine, W / 2 - 2, y);
+      T(meta, W / 2 - 2, y);
     }
 
     // double-ruled woodcut line that does not quite span the board, with stamped asterisks
@@ -750,7 +777,7 @@ export function paintProject(ctx: CanvasRenderingContext2D, c: SignContent): Boa
 
 // ---- 3D: signpost geometry --------------------------------------------------------------------------------
 
-function mergeGeos(list: THREE.BufferGeometry[], names: string[]): THREE.BufferGeometry {
+export function mergeGeos(list: THREE.BufferGeometry[], names: string[]): THREE.BufferGeometry {
   const out = new THREE.BufferGeometry();
   for (const n of names) {
     const size = list[0].getAttribute(n).itemSize;
@@ -770,7 +797,8 @@ function mergeGeos(list: THREE.BufferGeometry[], names: string[]): THREE.BufferG
 }
 
 /** Posts, back plate, trim, little gable roof, iron brackets and stone footings. Local space: +Z faces the viewer. */
-function buildFrame(rand: () => number, mossSide: number): THREE.BufferGeometry {
+export function buildFrame(rand: () => number, mossSide: number, width = BW): THREE.BufferGeometry {
+  const hw = width / 2;
   const parts: THREE.BufferGeometry[] = [];
   const wood = L.PROP_COLORS.wood;
   const stone = L.PROP_COLORS.stone;
@@ -797,21 +825,31 @@ function buildFrame(rand: () => number, mossSide: number): THREE.BufferGeometry 
   };
 
   for (const s of [-1, 1]) {
-    box(0.2, 3.15 + rand() * 0.12, 0.2, s * 1.5, 1.6, -0.08, pickWood(), s * (0.01 + rand() * 0.025));
-    box(0.44, 0.2, 0.44, s * 1.5, 0.1, -0.08, stone[(rand() * stone.length) | 0], 0, rand() * 1.5);
+    box(0.2, 3.15 + rand() * 0.12, 0.2, s * (hw + 0.2), 1.6, -0.08, pickWood(), s * (0.01 + rand() * 0.025));
+    box(0.44, 0.2, 0.44, s * (hw + 0.2), 0.1, -0.08, stone[(rand() * stone.length) | 0], 0, rand() * 1.5);
   }
   box(0.3, 0.14, 0.26, (rand() - 0.5) * 1.2, 0.07, 0.55, stone[0], 0, rand() * 2);
-  box(2.72, BH + 0.1, 0.1, 0, CY, 0, pickWood());
-  box(2.86, 0.11, 0.12, 0, CY + BH / 2 + 0.04, 0.075, pickWood());
-  box(2.86, 0.11, 0.12, 0, CY - BH / 2 - 0.04, 0.075, pickWood());
-  for (const s of [-1, 1]) box(0.11, BH + 0.1, 0.12, s * 1.34, CY, 0.075, pickWood());
+  box(width + 0.12, BH + 0.1, 0.1, 0, CY, 0, pickWood());
+  box(width + 0.26, 0.11, 0.12, 0, CY + BH / 2 + 0.04, 0.075, pickWood());
+  box(width + 0.26, 0.11, 0.12, 0, CY - BH / 2 - 0.04, 0.075, pickWood());
+  for (const s of [-1, 1]) box(0.11, BH + 0.1, 0.12, s * (hw + 0.04), CY, 0.075, pickWood());
   // thick top eave jutting out over the board
-  box(2.98, 0.17, 0.38, 0, CY + BH / 2 + 0.15, 0.18, pickWood());
-  for (const sx of [-1, 1]) for (const sy of [-1, 1]) box(0.16, 0.16, 0.05, sx * 1.36, CY + sy * (BH / 2 + 0.02), 0.115, rand() < 0.5 ? 0x4a2a1a : 0x3a2a22); // rusted iron
+  box(width + 0.38, 0.17, 0.38, 0, CY + BH / 2 + 0.15, 0.18, pickWood());
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) box(0.16, 0.16, 0.05, sx * (hw + 0.06), CY + sy * (BH / 2 + 0.02), 0.115, rand() < 0.5 ? 0x4a2a1a : 0x3a2a22); // rusted iron
   // gable roof: two sloped planks, a ridge cap and a patch of moss on one side
-  for (const s of [-1, 1]) box(1.7, 0.07, 0.62, s * 0.82, 3.28, 0.12, pickWood(), -s * 0.32);
-  box(0.12, 0.1, 0.66, 0, 3.56, 0.12, wood[2]);
-  box(0.7, 0.03, 0.4, mossSide * 1.05, 3.255, 0.2, 0x3f6b4a, -mossSide * 0.32);
+  // a wide board gets one gable per half and a middle post
+  const gables = width > 3.5 ? [-width / 4, width / 4] : [0];
+  // a wide board's roof is pushed back so the thick top eave hides it from the close camera
+  const gz = width > 3.5 ? -0.07 : 0;
+  gables.forEach((gx, gi) => {
+    for (const s of [-1, 1]) box(1.7, 0.07, 0.62, gx + s * 0.82, 3.28, 0.12 + gz, pickWood(), -s * 0.32);
+    box(0.12, 0.1, 0.66, gx, 3.56, 0.12 + gz, wood[2]);
+    if (gi === 0) box(0.7, 0.03, 0.4, gx + mossSide * 1.05, 3.255, 0.2 + gz, 0x3f6b4a, -mossSide * 0.32);
+  });
+  if (width > 3.5) {
+    box(0.2, 3.15 + rand() * 0.12, 0.2, 0, 1.6, -0.08, pickWood(), 0.01 + rand() * 0.02);
+    box(0.44, 0.2, 0.44, 0, 0.1, -0.08, stone[(rand() * stone.length) | 0], 0, rand() * 1.5);
+  }
   return mergeGeos(parts, ['position', 'normal', 'color']);
 }
 

@@ -1114,3 +1114,9 @@ section.hero .btn-secondary:hover {
 .sign-hit { position: absolute; display: block; border-radius: 10px; }
 .panel-project.active .sign-ui.on-sign .sign-hit { pointer-events: auto; cursor: pointer; }
 .sign-hit:focus-visible { outline: 3px solid #d9ae50; outline-offset: 3px; }
+
+/* ==== Job board: Tech Stack and More Projects share one painted board (jobBoard.ts / JobBoardControls.tsx) ==== */
+.panel-job { transform: none !important; padding: 0; overflow: hidden; }
+.panel-job.active { pointer-events: none; }
+.sign-ui.job-ui { width: 2048px; height: 682px; }
+.panel-job.active .sign-ui.on-sign .sign-hit { pointer-events: auto; cursor: pointer; }
