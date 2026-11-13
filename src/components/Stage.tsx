@@ -104,8 +104,8 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
   const worldRef = useRef<World | null>(null);
   const redrawRef = useRef<(() => void) | null>(null);
   const [announce, setAnnounce] = useState(chapters[0].title);
-  const [loadPct, setLoadPct] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [, setLoadPct] = useState(0);
+  const [, setLoading] = useState(true);
   const labelsRef = useRef<BannerLabel[]>([]);
   labelsRef.current = bannerLabels(chapters, projects);
   const signsRef = useRef<SignContent[]>([]);
@@ -358,17 +358,6 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
     <div className="stage-track" ref={trackRef} style={{ height: `${pinLengthVh(chapters.length)}vh` }}>
       <div className="stage-pin" ref={pinRef}>
         <div ref={canvasHostRef} style={{ display: 'contents' }} />
-        {loading && (
-          <div className="stage-loading" role="status" aria-live="polite">
-            <div className="stage-loading-card">
-              <p>Loading forest…</p>
-              <div className="stage-loading-bar" aria-hidden="true">
-                <span style={{ width: `${loadPct}%` }} />
-              </div>
-              <p className="stage-loading-pct">{loadPct}%</p>
-            </div>
-          </div>
-        )}
         <div className="stage-overlay">
           {chapters.map((c, i) => {
             const projectIndex = c.kind === 'project' ? ++projectNo : undefined;
