@@ -369,7 +369,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
             </div>
           </div>
         )}
-        <div className="stage-overlay" style={loading ? { visibility: 'hidden' } : undefined}>
+        <div className="stage-overlay" style={loading ? { display: 'none' } : undefined}>
           {chapters.map((c, i) => {
             const projectIndex = c.kind === 'project' ? ++projectNo : undefined;
             const sign = signs && projectIndex ? signsRef.current.find((x) => x.stopId === `project-${projectIndex}`) : undefined;
