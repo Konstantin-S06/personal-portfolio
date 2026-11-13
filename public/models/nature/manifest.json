@@ -1,0 +1,165 @@
+{
+  "source": "Quaternius Stylized Nature MegaKit (OBJ) + optional Kenney Nature Kit",
+  "generatedAt": "2026-11-08T20:20:50.709Z",
+  "modelCount": 22,
+  "totalBytes": 345016,
+  "missingRoles": [
+    "prop"
+  ],
+  "models": [
+    {
+      "file": "Bush_1.glb",
+      "role": "bush",
+      "height": 1.242,
+      "triangles": 364,
+      "targetHeight": 1.2
+    },
+    {
+      "file": "Bush_2.glb",
+      "role": "bush",
+      "height": 1.111,
+      "triangles": 268,
+      "targetHeight": 1.2
+    },
+    {
+      "file": "BushBerries_1.glb",
+      "role": "bush",
+      "height": 1.276,
+      "triangles": 892,
+      "targetHeight": 1.2
+    },
+    {
+      "file": "Grass.glb",
+      "role": "grass",
+      "height": 1.013,
+      "triangles": 192,
+      "targetHeight": 0.45
+    },
+    {
+      "file": "TreeStump_Moss.glb",
+      "role": "log",
+      "height": 0.622,
+      "triangles": 232,
+      "targetHeight": 1
+    },
+    {
+      "file": "WoodLog_Moss.glb",
+      "role": "log",
+      "height": 0.688,
+      "triangles": 614,
+      "targetHeight": 1
+    },
+    {
+      "file": "Flowers.glb",
+      "role": "plant",
+      "height": 0.829,
+      "triangles": 408,
+      "targetHeight": 0.5
+    },
+    {
+      "file": "Plant_1.glb",
+      "role": "plant",
+      "height": 0.507,
+      "triangles": 296,
+      "targetHeight": 0.5
+    },
+    {
+      "file": "Plant_2.glb",
+      "role": "plant",
+      "height": 1.774,
+      "triangles": 218,
+      "targetHeight": 0.5
+    },
+    {
+      "file": "Plant_3.glb",
+      "role": "plant",
+      "height": 0.944,
+      "triangles": 600,
+      "targetHeight": 0.5
+    },
+    {
+      "file": "Rock_Moss_1.glb",
+      "role": "rock",
+      "height": 0.95,
+      "triangles": 70,
+      "targetHeight": 1.5
+    },
+    {
+      "file": "Rock_Moss_2.glb",
+      "role": "rock",
+      "height": 0.692,
+      "triangles": 78,
+      "targetHeight": 1.5
+    },
+    {
+      "file": "Rock_Moss_3.glb",
+      "role": "rock",
+      "height": 0.557,
+      "triangles": 68,
+      "targetHeight": 1.5
+    },
+    {
+      "file": "Rock_Moss_4.glb",
+      "role": "rock",
+      "height": 0.784,
+      "triangles": 128,
+      "targetHeight": 1.5
+    },
+    {
+      "file": "BirchTree_1.glb",
+      "role": "tree-birch",
+      "height": 3.574,
+      "triangles": 1704,
+      "targetHeight": 9.5
+    },
+    {
+      "file": "BirchTree_2.glb",
+      "role": "tree-birch",
+      "height": 4.031,
+      "triangles": 1568,
+      "targetHeight": 9.5
+    },
+    {
+      "file": "PineTree_1.glb",
+      "role": "tree-conifer",
+      "height": 2.7,
+      "triangles": 1920,
+      "targetHeight": 11.5
+    },
+    {
+      "file": "PineTree_2.glb",
+      "role": "tree-conifer",
+      "height": 3.565,
+      "triangles": 1692,
+      "targetHeight": 11.5
+    },
+    {
+      "file": "PineTree_3.glb",
+      "role": "tree-conifer",
+      "height": 3.304,
+      "triangles": 2392,
+      "targetHeight": 11.5
+    },
+    {
+      "file": "CommonTree_1.glb",
+      "role": "tree-round",
+      "height": 2.481,
+      "triangles": 2888,
+      "targetHeight": 11.5
+    },
+    {
+      "file": "Willow_1.glb",
+      "role": "tree-round",
+      "height": 2.846,
+      "triangles": 1946,
+      "targetHeight": 11.5
+    },
+    {
+      "file": "Willow_3.glb",
+      "role": "tree-round",
+      "height": 2.348,
+      "triangles": 1044,
+      "targetHeight": 11.5
+    }
+  ]
+}

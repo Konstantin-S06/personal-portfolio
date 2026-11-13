@@ -1,0 +1,141 @@
+
+/* ---- More projects: cards curved around the campfire ---------------------------------------------- */
+.more-arc-wrap {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.more-title {
+  margin: 0 0 1rem;
+  font-size: 1.45rem;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+.more-arc {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  text-align: left;
+}
+
+.more-card {
+  padding: 16px 16px 14px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #fff;
+  text-shadow: none;
+  background: rgba(18, 24, 38, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  transition: border-color 450ms ease-out, background 450ms ease-out;
+}
+
+.more-card:hover {
+  border-color: rgba(255, 190, 120, 0.55);
+  background: rgba(24, 30, 46, 0.72);
+}
+
+.more-card h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  color: #fff;
+}
+
+.panel .more-card p {
+  margin: 0 0 0.5rem;
+  color: #fff;
+}
+
+.panel .more-card .more-context {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b8c2d6;
+}
+
+.more-summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.more-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 0.5rem;
+}
+
+.more-tag {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  color: #e8ecf4;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+.more-links {
+  display: flex;
+  gap: 0.9rem;
+  margin-top: 0.6rem;
+}
+
+.more-links a {
+  color: #8fc7ff;
+  text-decoration: underline;
+}
+
+/* Pinned: one row, bent into an arc. Centre card highest, outer cards lower and turned toward the middle,
+   so the fire shows underneath. --o is the card's offset from centre (set inline). */
+.panel-more {
+  align-items: flex-start;
+  overflow: hidden;
+  padding: 84px 24px 24px;
+  text-shadow: none;
+}
+
+.panel.panel-more.active { pointer-events: none; }
+.panel-more.active .more-card { pointer-events: auto; }
+
+.panel-more .more-arc {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  perspective: 1500px;
+}
+
+.panel-more .more-card {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 236px;
+  transform:
+    translateY(calc(var(--o) * var(--o) * 16px))
+    translateZ(calc(var(--o) * var(--o) * -22px))
+    rotateY(calc(var(--o) * -8deg));
+}
+
+/* Narrow windows: no arc, scrollable two-column grid. */
+@media (max-width: 1000px) {
+  .panel-more { overflow-y: auto; }
+  .panel.panel-more.active { pointer-events: auto; }
+  .panel-more .more-arc {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    perspective: none;
+  }
+  .panel-more .more-card { max-width: none; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .more-card { transition: none; }
+}

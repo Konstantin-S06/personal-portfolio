@@ -38,6 +38,14 @@ CREATE TABLE IF NOT EXISTS projects (
     tech_stack TEXT NOT NULL CHECK(length(tech_stack) <= 300),
     github_url TEXT CHECK(github_url IS NULL OR length(github_url) <= 300),
     project_date DATE,
+    summary TEXT,                          -- <=280, one-liner for path signs / grid cards
+    role TEXT,                             -- <=200
+    context TEXT,                          -- <=200
+    highlights TEXT,                       -- JSON array, <=6 strings of <=240 chars
+    category TEXT,                         -- web, ai_ml, systems, game, research, tooling
+    featured INTEGER NOT NULL DEFAULT 0,   -- 0 or 1 (INTEGER on every database)
+    sort_order INTEGER NOT NULL DEFAULT 100,
+    demo_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -45,6 +53,9 @@ CREATE TABLE IF NOT EXISTS projects (
 -- Index for displaying projects in reverse chronological order
 CREATE INDEX IF NOT EXISTS idx_projects_created 
 ON projects(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_projects_featured_sort
+ON projects(featured, sort_order);
 
 -- ===========================
 -- CONTACTS TABLE

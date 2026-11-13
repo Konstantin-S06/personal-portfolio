@@ -1,0 +1,225 @@
+{
+  "projects": [
+    {
+      "title": "Conflict of Interest Declaration System (ECCC)",
+      "summary": "Digital workflow that replaced a manual PDF declaration process for employees and HR advisors at a federal department.",
+      "description": "Software Developer (Programming Analyst & AI Solutions) at Environment and Climate Change Canada, June to December 2026. The Conflict of Interest Declaration System replaces a manual PDF-based process with two Power Apps: an employee app for completing self-assessments and submitting declarations, and an HR advisor app for reviewing declarations, assigning priorities, preparing responses, getting approval and managing follow-ups. Most of my work was on the HR advisor app: building screens and logic, the email response-template selector, English/French localization, accessibility and responsive behaviour, bug fixing, and reviewing other developers' screens. In October 2026 I also joined the department's AI/LLM team and built a privacy-redaction pipeline in Python for its inquiry data.",
+      "tech_stack": "Power Apps, Power Fx, Power Automate, SharePoint, Azure DevOps, Git, HTML, Python, pandas",
+      "github_url": null,
+      "demo_url": null,
+      "project_date": "2026-06-01",
+      "role": "Software Developer | Programming Analyst & AI Solutions (team project)",
+      "context": "Environment and Climate Change Canada, June to December 2026",
+      "category": "tooling",
+      "featured": 1,
+      "sort_order": 10,
+      "highlights": [
+        "Finished an email response-template selector that had stalled for months, in under two weeks: 300+ lines of Power Fx across 4+ components that fill replies from declaration data",
+        "Cut a weekly SharePoint cleanup flow from about 45 minutes to about 2 by filtering records before the loops instead of re-iterating nearly 1,000 records",
+        "Built reusable English/French localization backed by a SharePoint translation list, wrote about 90% of the apps' accessibility labels, and built reusable components and validation logic",
+        "Joined the AI/LLM team in October 2026 and independently built a 1,000+ line Python pipeline that redacts personal data from 2,300+ confidential bilingual inquiries with deterministic rules, not AI",
+        "Two-stage design: cleaning, then sentence-level validation that sorts records into full, partial or rejected. Presented it and its privacy safeguards to three departmental managers and agreed next steps",
+        "Team recognition (not an individual award): the CIDS team won ECCC's departmental Citation of Excellence and was a finalist for a government-wide HR Council award"
+      ]
+    },
+    {
+      "title": "UofTHacks Website and Backend",
+      "summary": "Navigation, scroll choreography, a contact form and backend security fixes for a major University of Toronto hackathon's site.",
+      "description": "Software Engineer on the UofTHacks team (March 2026 to present), a student organization of 50+ organizers with roughly 15 engineers, running a hackathon with 3,500+ applicants. I work on the public website and the FastAPI backend that supports the event. On the frontend I built the navigation overlay and the controller that moves visitors between sections and 3D scenes, plus the Contact Us form. On the backend I fixed authentication and API-response security issues. This is collaborative work: the original 3D scenes and animations were built by other contributors.",
+      "tech_stack": "Python, Astro, React, TypeScript, Three.js, React Three Fiber, GSAP ScrollTrigger, Tailwind CSS, FastAPI",
+      "github_url": null,
+      "demo_url": null,
+      "project_date": "2026-03-01",
+      "role": "Software Engineer (frontend and backend security)",
+      "context": "UofTHacks, March 2026 to present, ~15-engineer team",
+      "category": "web",
+      "featured": 1,
+      "sort_order": 20,
+      "highlights": [
+        "Built the responsive navigation overlay and a GSAP controller that animates scroll to any section or 3D scene, cancelling stale transitions so ScrollTrigger animations stay in sync",
+        "Connected hero and path scenes to scroll-driven chapter overlays, with camera parking so a reactivated scene never flashes a stale frame",
+        "Built the React Contact Us form with bot-check verification and distinct messages for captcha, email, validation and network failures",
+        "Closed authentication gaps in the FastAPI backend: stopped exposing credential fields in API responses and required verified tokens for the judge WebSocket",
+        "Added regression tests for response serialization, token handling and role-based access"
+      ]
+    },
+    {
+      "title": "Goalkeeper AI: Predictive 3D Penalty Simulator",
+      "summary": "A playable 3D penalty shootout with custom physics and a goalkeeper that predicts the ball using the game's own physics.",
+      "description": "A C++20 penalty shootout and physics simulator built around a renderer-independent simulation core, so the same physics and AI run in the Raylib game and in a deterministic headless evaluator. It includes a custom 120 Hz physics engine, continuous collision detection, a drag-compensated shot solver, a procedural low-poly stadium, and a goalkeeper with a seven-phase procedural animation system driven by two-bone inverse kinematics. I designed and implemented the requirements, architecture, gameplay, evaluation method and acceptance criteria.",
+      "tech_stack": "C++20, Raylib, GLSL, CMake, CTest, GitHub Actions",
+      "github_url": null,
+      "demo_url": null,
+      "project_date": "2026-10-01",
+      "role": "Lead developer",
+      "context": "Individual project, 2026",
+      "category": "game",
+      "featured": 1,
+      "sort_order": 30,
+      "highlights": [
+        "Predictive goalkeeper simulates the ball through the production physics, bounded by reaction delay, speed and reach: 67.3% saves vs 32.1% for a reactive baseline over 10,000 seeded Medium-difficulty shots",
+        "Drag-compensated shot solver accurate to within 1 cm at the goal plane across nine target and power combinations in tests",
+        "Swept collision checks against the goal frame and 12 goalkeeper body capsules fix high-speed tunnelling",
+        "Seeded, paired headless evaluation with CSV export, 17 custom test groups and Windows/Linux CI",
+        "Benchmarks describe this simulator, seed and difficulty setting, not real-world goalkeepers"
+      ]
+    },
+    {
+      "title": "Cooperative Hanabi Agents (Research)",
+      "summary": "Undergraduate research on intentional communication between cooperative agents in three-player Hanabi.",
+      "description": "A five-student undergraduate research project in the University of Toronto Department of Computer Science, extending a published two-player intentional-agent approach to three players. In Hanabi, players cannot see their own cards, and agents treat hints as signals of intended actions rather than only card information. The group built and evaluated several rule-based agent variants against a common baseline. My part: two agent variants, a fix to simulation seeding in the C++ game engine, and the statistical evaluation harness.",
+      "tech_stack": "Python, C++, rule-based agents, seeded simulation, SciPy, paired statistical tests",
+      "github_url": null,
+      "demo_url": null,
+      "project_date": "2026-09-01",
+      "role": "Undergraduate researcher (five-student team)",
+      "context": "University of Toronto, September to December 2026",
+      "category": "research",
+      "featured": 1,
+      "sort_order": 40,
+      "highlights": [
+        "Implemented two rule-based agent variants: V12 (hint-silence and discard-discount) and V16 (collaborative hints)",
+        "Fixed deck-seed handling in the C++ engine so agents compared under one seed see identical decks, making paired comparisons possible",
+        "Built the evaluation harness: 1,000 seeded three-player games per agent, paired t and Wilcoxon tests with Holm correction, bootstrap CIs, Cohen's d and McNemar tests",
+        "Analysed game logs and metrics such as critical discards and information per play to diagnose failure cases",
+        "Team effort: agent variants were developed collectively, and the results belong to the group"
+      ]
+    },
+    {
+      "title": "AI Squared: Reinforcement Learning Fighter",
+      "summary": "A PPO agent trained to play a platform-fighting game, with custom reward design and self-play style opponents.",
+      "description": "A reinforcement learning agent for a platform-fighting game, trained with Proximal Policy Optimization in a custom Gymnasium environment. The work covered defining observation and action spaces, designing reward functions, running training experiments, and comparing learned policies against scripted and earlier agent opponents.",
+      "tech_stack": "Python, Gymnasium, Stable-Baselines3, PPO, PyTorch",
+      "github_url": null,
+      "demo_url": null,
+      "project_date": "2025-10-01",
+      "role": "Machine learning developer",
+      "context": "One-week hackathon, October 2025",
+      "category": "ai_ml",
+      "featured": 1,
+      "sort_order": 50,
+      "highlights": [
+        "Custom Gymnasium environment with a 64-value observation and 10 continuous button channels thresholded at 0.5",
+        "PPO via Stable-Baselines3 with a three-layer MLP, trained against 70% scripted opponents and 30% earlier agent versions",
+        "Adaptive rewards: run out the clock when ahead, dodge or punish when behind, with +500 for a win and +80 for a knockout",
+        "62% win rate on the hackathon's agent-versus-agent leaderboard, using a 1.0M-step checkpoint",
+        "100M+ cumulative training steps across experiments; the longest single run was 35.5M"
+      ]
+    },
+    {
+      "title": "Squirrl: Gamified Academic Planner",
+      "summary": "Turns Canvas assignments into quests that earn XP and Acorns, with friends and player-versus-player battles.",
+      "description": "A gamified academic planner for University of Toronto students, built in a 36-hour hackathon. It connects to Canvas, converts assignments into quests, and rewards completed work with experience points and Acorns. It also has friends, progress tracking and a battle system. I built the battle flow, friends and requests, the activity journal and most dashboard statistics, the quests table, and the Canvas connection flow. Teammates built the course pages, avatars, timetable, header and styling.",
+      "tech_stack": "Python, React, TypeScript, Firebase Authentication, Firestore, Canvas LMS API",
+      "github_url": null,
+      "demo_url": null,
+      "project_date": "2026-01-15",
+      "role": "Full-stack developer (team project)",
+      "context": "36-hour hackathon, January 2026",
+      "category": "web",
+      "featured": 1,
+      "sort_order": 60,
+      "highlights": [
+        "Built the battle system: a random unshielded opponent, Firestore batched writes updating both players' stats, and an eight-hour defender shield",
+        "Built the friends graph and friend-request flow using friend codes and Firestore array operations",
+        "Integrated Canvas assignments as Complete, Incomplete and Pending quests that award 1 Acorn and 10 XP",
+        "Built the activity journal, Acorn counter and most dashboard statistics",
+        "Teammates handled the course pages, avatars, timetable and styling"
+      ]
+    },
+    {
+      "title": "Hack Or Treat: AI Theme Generator",
+      "summary": "Pick a photo and Gemini restyles it, gives a shopping list and plays a song.",
+      "description": "A desktop app that turns a user-selected photo into a themed visual concept. Gemini analyses the photo and picks matching catalogue items, a second Gemini model generates an edited version of the image, a shopping panel shows the recommendations, and a 30-second Deezer preview plays alongside. A side chatbot answers follow-up questions in 15 words or fewer. Built in a six-hour sprint at Hack Or Treat, the Halloween hackathon the UofTHacks team runs every year.",
+      "tech_stack": "Python, Pygame, Gemini 2.5 Flash, Gemini 2.5 Flash Image, Deezer API",
+      "github_url": null,
+      "demo_url": null,
+      "project_date": "2025-10-31",
+      "role": "Developer (team project)",
+      "context": "6-hour Hackathon, 1st place ",
+      "category": "ai_ml",
+      "featured": 0,
+      "sort_order": 100,
+      "highlights": [
+        "Won first place, with unanimous approval from the judges",
+        "Combined Gemini image analysis, Gemini image generation and the Deezer API in one Pygame app",
+        "Delivered an end-to-end prototype in six hours"
+      ]
+    },
+    {
+      "title": "Multiplayer Battleship",
+      "summary": "Two-player Battleship in C over TCP with a custom line-based protocol.",
+      "description": "A client-server Battleship game in C. The server owns both boards, manages turns, and uses select() to handle two clients; each client runs input and network threads and draws a terminal UI. A custom text protocol covers placement, readiness, firing, rematches and quitting. The server only ever sends each player their own board.",
+      "tech_stack": "C, TCP sockets, select(), pthreads, Makefile",
+      "github_url": null,
+      "demo_url": null,
+      "project_date": "2026-03-01",
+      "role": "Developer",
+      "context": "University project, March 2026",
+      "category": "systems",
+      "featured": 0,
+      "sort_order": 110,
+      "highlights": [
+        "Server multiplexes two clients with select(); clients use two pthreads for input and incoming messages",
+        "Designed protocol commands such as PLACE, READY, FIRE, REMATCH and QUIT",
+        "Server-side state: ship placement, hit and sunk tracking, turns and win conditions"
+      ]
+    },
+    {
+      "title": "Animal Encyclopedia Application",
+      "summary": "Java Swing app for searching, comparing and collecting animals.",
+      "description": "A team-built Java desktop app for exploring animal information from API Ninjas. Features include search, filtering, comparison, favourites, trading cards, and saving and loading cards. Application behaviour lives in interactors rather than the GUI, and OpenRouter GPT-4o provides spelling suggestions and candidate names for filtering. I worked on the backend interactors and their tests.",
+      "tech_stack": "Java, Java Swing, API Ninjas, OpenRouter GPT-4o, JUnit, Git",
+      "github_url": null,
+      "demo_url": null,
+      "project_date": "2025-12-01",
+      "role": "Backend developer (team project)",
+      "context": "University team project, October to December 2025",
+      "category": "tooling",
+      "featured": 0,
+      "sort_order": 120,
+      "highlights": [
+        "Implemented and tested interactors for search, filtering, comparison, favourites, trading cards and save/load",
+        "Integrated GPT-4o through OpenRouter for spelling suggestions and filter-name candidates",
+        "Used JUnit fakes and code reviews to keep application logic testable"
+      ]
+    },
+    {
+      "title": "Anime Recommendation Bot",
+      "summary": "Graph-based recommendation engine that scores similarity between anime from public datasets.",
+      "description": "A University of Toronto team project that uses graph models and public datasets to compute similarity scores between anime, helping users find relevant titles. I collaborated on processing the dataset and on the similarity workflow.",
+      "tech_stack": "Python, graph models, public datasets",
+      "github_url": null,
+      "demo_url": null,
+      "project_date": "2025-04-01",
+      "role": "Developer (team project)",
+      "context": "University team project, March to April 2025",
+      "category": "ai_ml",
+      "featured": 0,
+      "sort_order": 130,
+      "highlights": [
+        "Built similarity scoring between titles on a graph model",
+        "Helped optimize the data-processing workflow behind the recommendations"
+      ]
+    },
+    {
+      "title": "Personal Portfolio Website",
+      "summary": "This site: a scroll-driven 3D walk backed by a Flask API.",
+      "description": "Full-stack portfolio with a scroll-driven 3D journey, a Flask REST API, and an admin panel for managing projects. The frontend falls back to bundled data when the API is unreachable, and the backend runs on SQLite, Turso or PostgreSQL.",
+      "tech_stack": "TypeScript, React, three.js, Vite, Python, Flask, SQLite, PostgreSQL",
+      "github_url": "https://github.com/Konstantin-S06",
+      "demo_url": null,
+      "project_date": "2026-01-11",
+      "role": "Solo developer",
+      "context": "Personal project",
+      "category": "web",
+      "featured": 0,
+      "sort_order": 140,
+      "highlights": [
+        "Scroll position scrubs a three.js camera path while HTML chapters fade over the canvas",
+        "Flask REST API with token-protected admin endpoints and parameterized SQL",
+        "One schema works on SQLite, Turso and PostgreSQL with idempotent migrations"
+      ]
+    }
+  ]
+}

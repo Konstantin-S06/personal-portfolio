@@ -14,6 +14,7 @@ from openai import OpenAI
 # Set up logging
 logger = logging.getLogger(__name__)
 
+"""
 # Configure Hugging Face API
 HF_API_KEY = os.getenv('HUGGINGFACE_API_KEY') or os.getenv('HF_TOKEN')
 
@@ -35,7 +36,23 @@ else:
 MODELS = [
     "openai/gpt-oss-20b:groq",
     "mistralai/Mistral-7B-Instruct-v0.2",
-]
+]"""
+HF_API_KEY = os.getenv('HUGGINGFACE_API_KEY') or os.getenv('HF_TOKEN')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+
+client = None
+if GROQ_API_KEY:
+    client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=GROQ_API_KEY)
+    MODELS = ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]
+    HF_API_KEY = GROQ_API_KEY  # keeps try_prose.py's "key visible" check working
+    logger.info("Groq client configured")
+elif HF_API_KEY:
+    client = OpenAI(base_url="https://router.huggingface.co/v1", api_key=HF_API_KEY)
+    MODELS = ["openai/gpt-oss-20b:groq", "openai/gpt-oss-20b"]
+    logger.info("Hugging Face client configured")
+else:
+    MODELS = []
+    logger.error("GROQ_API_KEY, HUGGINGFACE_API_KEY or HF_TOKEN not set")
 
 
 _CANDIDATE_NAME = os.getenv("CANDIDATE_NAME", "Konstantin").strip() or "Konstantin"
@@ -90,32 +107,38 @@ _TECH_ALIASES = {
 }
 
 
-def call_hf_chat(messages, max_tokens=200, temperature=0.1):
+def call_hf_chat(messages, max_tokens=200, temperature=0.1, timeout=None):
     """
-    Call Hugging Face API with model fallback
+    Call the chat API with model fallback. Retries once on an empty reply.
     """
     if not client:
         return None
-    
+
     for model in MODELS:
-        try:
-            completion = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
-            
-            if completion and completion.choices and len(completion.choices) > 0:
-                message = completion.choices[0].message
-                if message and hasattr(message, 'content') and message.content:
-                    text = str(message.content).strip()
-                    if text:
-                        return text
-        except Exception as e:
-            logger.warning(f"Model {model} failed: {e}")
-            continue
-    
+        for attempt in (1, 2):
+            try:
+                extra = {} if timeout is None else {"timeout": timeout}
+                if GROQ_API_KEY and model.startswith("openai/gpt-oss"):
+                    extra["extra_body"] = {"reasoning_effort": "low"}
+                completion = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    **extra,
+                )
+                choice = completion.choices[0] if completion and completion.choices else None
+                text = str(choice.message.content or "").strip() if choice and choice.message else ""
+                if text:
+                    return text
+                logger.warning(
+                    f"Model {model} returned empty content "
+                    f"(attempt {attempt}, finish_reason={getattr(choice, 'finish_reason', None)})"
+                )
+            except Exception as e:
+                logger.warning(f"Model {model} failed: {e}")
+                break  # real errors are not retried; move to the next model
+
     return None
 
 

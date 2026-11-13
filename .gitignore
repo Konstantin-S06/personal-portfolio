@@ -132,6 +132,12 @@ fly.toml
 *.bak
 *.backup
 
+# Assets source files
+assets-src/
+
 # Temporary files
 tmp/
 temp/
+# Node / Vite
+node_modules/
+

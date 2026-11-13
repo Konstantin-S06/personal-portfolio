@@ -195,27 +195,52 @@ class _TursoConnection:
         except Exception:
             pass
 
+# Columns added after the original schema: (name, SQLite/Turso type, Postgres type).
+# `featured` is INTEGER everywhere (no BOOLEAN) so all three databases behave the same.
+# Names and types are constants, never user input, so building the ALTER statement is safe.
+_PROJECT_EXTRA_COLUMNS = [
+    ("project_date", "DATE", "DATE"),
+    ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+    ("summary", "TEXT", "VARCHAR(280)"),
+    ("role", "TEXT", "VARCHAR(200)"),
+    ("context", "TEXT", "VARCHAR(200)"),
+    ("highlights", "TEXT", "TEXT"),
+    ("category", "TEXT", "VARCHAR(20)"),
+    ("featured", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0"),
+    ("sort_order", "INTEGER NOT NULL DEFAULT 100", "INTEGER NOT NULL DEFAULT 100"),
+    ("demo_url", "TEXT", "VARCHAR(300)"),
+]
+
+
+def _existing_project_columns(cursor, is_postgres: bool) -> set:
+    if is_postgres:
+        cursor.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = %s AND table_schema = current_schema()",
+            ("projects",),
+        )
+        return {str(r[0]).lower() for r in cursor.fetchall()}
+    # SQLite / Turso: rows are (cid, name, type, notnull, dflt_value, pk)
+    cursor.execute("PRAGMA table_info(projects)")
+    return {str(r[1]).lower() for r in cursor.fetchall()}
+
+
 def _ensure_project_columns(cursor, is_postgres: bool):
     """
-    Best-effort schema migration for existing databases.
-    Adds:
-    - project_date: an explicit date for the project (separate from created_at)
-    - updated_at: last update timestamp
+    Idempotent schema migration for existing databases (SQLite, Turso, Postgres).
+    Checks which columns exist first and adds only the missing ones.
     """
-    if is_postgres:
-        cursor.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_date DATE")
-        cursor.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-        return
+    existing = _existing_project_columns(cursor, is_postgres)
+    for name, sqlite_type, pg_type in _PROJECT_EXTRA_COLUMNS:
+        if name in existing:
+            continue
+        col_type = pg_type if is_postgres else sqlite_type
+        cursor.execute(f"ALTER TABLE projects ADD COLUMN {name} {col_type}")
 
-    # SQLite: ADD COLUMN has no IF NOT EXISTS on older versions, so we try and ignore failures.
-    try:
-        cursor.execute("ALTER TABLE projects ADD COLUMN project_date DATE")
-    except Exception:
-        pass
-    try:
-        cursor.execute("ALTER TABLE projects ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-    except Exception:
-        pass
+    # Must run after the columns exist (legacy tables get them above).
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_projects_featured_sort ON projects(featured, sort_order)"
+    )
 
 
 def get_db_connection():
@@ -263,6 +288,14 @@ def init_db():
                 tech_stack VARCHAR(300) NOT NULL,
                 github_url VARCHAR(300),
                 project_date DATE,
+                summary VARCHAR(280),
+                role VARCHAR(200),
+                context VARCHAR(200),
+                highlights TEXT,
+                category VARCHAR(20),
+                featured INTEGER NOT NULL DEFAULT 0,
+                sort_order INTEGER NOT NULL DEFAULT 100,
+                demo_url VARCHAR(300),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -301,6 +334,14 @@ def init_db():
                 tech_stack TEXT NOT NULL CHECK(length(tech_stack) <= 300),
                 github_url TEXT CHECK(github_url IS NULL OR length(github_url) <= 300),
                 project_date DATE,
+                summary TEXT,
+                role TEXT,
+                context TEXT,
+                highlights TEXT,
+                category TEXT,
+                featured INTEGER NOT NULL DEFAULT 0,
+                sort_order INTEGER NOT NULL DEFAULT 100,
+                demo_url TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )

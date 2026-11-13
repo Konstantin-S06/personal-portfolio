@@ -5,11 +5,18 @@ Author: Konstantin Shtop
 
 import os
 import logging
-from datetime import datetime, date
+from datetime import datetime
 import hashlib
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from db import init_db, get_db_connection, IS_POSTGRES
+from contact_email import notify_contact, is_valid_email
+from project_validation import (
+    validate_project,
+    highlights_to_list,
+    DEFAULT_SORT_ORDER,
+    EXTRA_FIELDS,
+)
 
 # ===========================
 # APPLICATION SETUP
@@ -67,19 +74,11 @@ def _require_admin():
     return None
 
 
-def _parse_project_date(value):
-    """
-    Accepts YYYY-MM-DD or empty/null. Returns date | None.
-    """
-    if value is None:
+def _db_date(d):
+    """date -> driver value: a date object for Postgres, ISO text for SQLite/Turso."""
+    if d is None:
         return None
-    s = str(value).strip()
-    if not s:
-        return None
-    try:
-        return date.fromisoformat(s)
-    except Exception:
-        return "INVALID"
+    return d if IS_POSTGRES else d.isoformat()
 
 # ===========================
 # API ROUTES
@@ -92,10 +91,16 @@ def get_projects():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # (project_date IS NULL) sorts undated rows last on SQLite, Turso and Postgres alike.
         cursor.execute('''
-            SELECT id, title, description, tech_stack, github_url, project_date, created_at, updated_at
+            SELECT id, title, description, tech_stack, github_url, project_date, created_at, updated_at,
+                   summary, role, context, highlights, category, featured, sort_order, demo_url
             FROM projects
-            ORDER BY created_at DESC, id DESC
+            ORDER BY COALESCE(featured, 0) DESC,
+                     COALESCE(sort_order, 100) ASC,
+                     (project_date IS NULL) ASC,
+                     project_date DESC,
+                     id DESC
         ''')
         
         projects = []
@@ -116,6 +121,14 @@ def get_projects():
                 'project_date': _iso(row[5]),
                 'created_at': _iso(row[6]),
                 'updated_at': _iso(row[7]),
+                'summary': row[8],
+                'role': row[9],
+                'context': row[10],
+                'highlights': highlights_to_list(row[11]),
+                'category': row[12],
+                'featured': int(row[13] or 0),
+                'sort_order': int(row[14]) if row[14] is not None else DEFAULT_SORT_ORDER,
+                'demo_url': row[15],
             })
         
         conn.close()
@@ -134,53 +147,35 @@ def create_project():
         if auth_error:
             return auth_error
 
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['title', 'description', 'tech_stack']
-        for field in required_fields:
-            if not data.get(field) or not data.get(field).strip():
-                return jsonify({'error': f'Missing required field: {field}'}), 400
-        
-        # Extract and sanitize
-        title = data['title'].strip()
-        description = data['description'].strip()
-        tech_stack = data['tech_stack'].strip()
-        github_url = data.get('github_url', '').strip() or None
-        project_date = _parse_project_date(data.get('project_date'))
-        if project_date == "INVALID":
-            return jsonify({'error': 'Invalid project_date. Use YYYY-MM-DD.'}), 400
-        
-        # Validation
-        if len(title) > 200:
-            return jsonify({'error': 'Title too long'}), 400
-        if len(description) > 2000:
-            return jsonify({'error': 'Description too long'}), 400
-        if len(tech_stack) > 300:
-            return jsonify({'error': 'Tech stack too long'}), 400
-        if github_url and not github_url.startswith('http'):
-            return jsonify({'error': 'Invalid GitHub URL'}), 400
-        
-        # Insert with correct placeholder syntax
+        clean, error = validate_project(request.get_json(silent=True))
+        if error:
+            return jsonify({'error': error}), 400
+
+        # Defaults for optional columns the payload left out.
+        clean.setdefault('featured', 0)
+        clean.setdefault('sort_order', DEFAULT_SORT_ORDER)
+        cols = ['title', 'description', 'tech_stack', 'github_url', 'project_date'] + [
+            c for c in EXTRA_FIELDS if c in clean
+        ]
+        values = [_db_date(clean[c]) if c == 'project_date' else clean[c] for c in cols]
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
+        # Column names come from a fixed whitelist; values are bound parameters.
         if IS_POSTGRES:
-            # PostgreSQL - use RETURNING to get the ID
-            cursor.execute('''
-                INSERT INTO projects (title, description, tech_stack, github_url, project_date)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id
-            ''', (title, description, tech_stack, github_url, project_date))
+            cursor.execute(
+                f"INSERT INTO projects ({', '.join(cols)}) VALUES ({', '.join(['%s'] * len(cols))}) RETURNING id",
+                tuple(values),
+            )
             project_id = cursor.fetchone()[0]
         else:
-            # SQLite / Turso (libSQL)
-            cursor.execute('''
-                INSERT INTO projects (title, description, tech_stack, github_url, project_date)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (title, description, tech_stack, github_url, project_date.isoformat() if project_date else None))
+            cursor.execute(
+                f"INSERT INTO projects ({', '.join(cols)}) VALUES ({', '.join(['?'] * len(cols))})",
+                tuple(values),
+            )
             project_id = cursor.lastrowid
-        
+
         conn.commit()
         conn.close()
         
@@ -242,30 +237,9 @@ def update_project(project_id):
         if auth_error:
             return auth_error
 
-        data = request.get_json() or {}
-
-        # Validate required fields
-        required_fields = ['title', 'description', 'tech_stack']
-        for field in required_fields:
-            if not data.get(field) or not str(data.get(field)).strip():
-                return jsonify({'error': f'Missing required field: {field}'}), 400
-
-        title = str(data['title']).strip()
-        description = str(data['description']).strip()
-        tech_stack = str(data['tech_stack']).strip()
-        github_url = str(data.get('github_url', '')).strip() or None
-        project_date = _parse_project_date(data.get('project_date'))
-        if project_date == "INVALID":
-            return jsonify({'error': 'Invalid project_date. Use YYYY-MM-DD.'}), 400
-
-        if len(title) > 200:
-            return jsonify({'error': 'Title too long'}), 400
-        if len(description) > 2000:
-            return jsonify({'error': 'Description too long'}), 400
-        if len(tech_stack) > 300:
-            return jsonify({'error': 'Tech stack too long'}), 400
-        if github_url and not github_url.startswith('http'):
-            return jsonify({'error': 'Invalid GitHub URL'}), 400
+        clean, error = validate_project(request.get_json(silent=True) or {})
+        if error:
+            return jsonify({'error': error}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -279,41 +253,17 @@ def update_project(project_id):
             conn.close()
             return jsonify({'error': 'Project not found'}), 404
 
-        if IS_POSTGRES:
-            cursor.execute(
-                '''
-                UPDATE projects
-                SET title = %s,
-                    description = %s,
-                    tech_stack = %s,
-                    github_url = %s,
-                    project_date = %s,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s
-                ''',
-                (title, description, tech_stack, github_url, project_date, project_id),
-            )
-        else:
-            cursor.execute(
-                '''
-                UPDATE projects
-                SET title = ?,
-                    description = ?,
-                    tech_stack = ?,
-                    github_url = ?,
-                    project_date = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                ''',
-                (
-                    title,
-                    description,
-                    tech_stack,
-                    github_url,
-                    project_date.isoformat() if project_date else None,
-                    project_id,
-                ),
-            )
+        # Always-written legacy fields, plus optional columns only if the payload included them.
+        cols = ['title', 'description', 'tech_stack', 'github_url', 'project_date'] + [
+            c for c in EXTRA_FIELDS if c in clean
+        ]
+        values = [_db_date(clean[c]) if c == 'project_date' else clean[c] for c in cols]
+        ph = '%s' if IS_POSTGRES else '?'
+        set_sql = ', '.join(f'{c} = {ph}' for c in cols)
+        cursor.execute(
+            f'UPDATE projects SET {set_sql}, updated_at = CURRENT_TIMESTAMP WHERE id = {ph}',
+            tuple(values) + (project_id,),
+        )
 
         conn.commit()
         conn.close()
@@ -343,8 +293,8 @@ def submit_contact():
         if len(name) > 100 or len(email) > 100 or len(message) > 1000:
             return jsonify({'error': 'Input too long'}), 400
         
-        if '@' not in email:
-            return jsonify({'error': 'Invalid email'}), 400
+        if not is_valid_email(email):
+            return jsonify({'error': 'Please enter a valid email address.'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -367,7 +317,9 @@ def submit_contact():
         
         conn.commit()
         conn.close()
-        
+
+        notify_contact(name, email, message, contact_id)
+
         return jsonify({
             'message': 'Contact form submitted successfully',
             'contact_id': contact_id
@@ -559,44 +511,11 @@ def admin_migrate_postgres_to_turso():
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """POST /api/chat - AI-powered chat using Hugging Face"""
-    try:
-        from ai_helper import answer_portfolio_question
-        
-        data = request.get_json()
-        
-        if not data.get('question') or not data.get('question').strip():
-            return jsonify({'error': 'Question is required'}), 400
-        
-        question = data['question'].strip()
-        app.logger.info(f"Chat question: {question}")
-        
-        if len(question) > 500:
-            return jsonify({'error': 'Question too long'}), 400
-        
-        conn = get_db_connection()
-        try:
-            answer, debug = answer_portfolio_question(question, conn)
-            app.logger.info(f"Chat debug: {debug}")
-        finally:
-            conn.close()
-        
-        return jsonify({
-            'answer': answer,
-            'sql_query': None
-        }), 200
-        
-    except ImportError:
-        return jsonify({
-            'answer': 'AI chat is not configured. Please set HUGGINGFACE_API_KEY.',
-            'sql_query': None
-        }), 200
-    except Exception as e:
-        app.logger.error(f"Chat error: {str(e)}")
-        return jsonify({
-            'answer': 'Sorry, I encountered an error. Please try again.',
-            'sql_query': None
-        }), 200
+    """POST /api/chat - portfolio Q&A (guarded NL-to-SQL, keyword fallback)"""
+    from chat_service import handle_chat
+
+    body, status = handle_chat(request)
+    return jsonify(body), status
 
 
 @app.route('/api/health', methods=['GET'])
