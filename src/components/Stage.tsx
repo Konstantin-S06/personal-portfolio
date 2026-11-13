@@ -10,6 +10,8 @@ import { ChapterContent } from './ChapterContent';
 import { ContactPaperControls } from './ContactPaperControls';
 import { HomeSignControls } from './HomeSignControls';
 import type { HomeContent } from '../scene/homeSign'; // type only
+import { AboutSignControls } from './AboutSignControls';
+import type { AboutContent } from '../scene/aboutSign'; // type only
 import { SignControls } from './SignControls';
 import { JobNotesControls, JobTechText } from './JobBoardControls';
 import { jobBoardContent, signContent, type JobBoardContent, type SignContent } from '../lib/signContent';
@@ -61,6 +63,7 @@ function jobBoardData(chapters: Chapter[], projects: Project[]): JobBoardContent
 /** Content for the Home signpost that replaces the flat Home card in pinned mode. Copy mirrors ChapterContent's `hero` case. */
 function homeData(chapters: Chapter[]): HomeContent | null {
   if (!chapters.some((c) => c.kind === 'hero')) return null;
+  const aboutId = chapters.find((c) => c.kind === 'about')?.id;
   const firstProjectId = chapters.find((c) => c.kind === 'project')?.id;
   const contactId = chapters.find((c) => c.kind === 'cta')?.id ?? 'connect';
   return {
@@ -73,10 +76,23 @@ function homeData(chapters: Chapter[]): HomeContent | null {
       "Scroll to walk through some of what I've built.",
     ],
     actions: [
-      { id: firstProjectId ?? 'more-projects', label: 'Start the walk' },
+      { id: aboutId ?? firstProjectId ?? 'more-projects', label: 'Start the walk' },
       { id: contactId, label: 'Get in touch' },
     ],
     hint: 'Scroll to walk forward',
+  };
+}
+
+function aboutData(chapters: Chapter[]): AboutContent | null {
+  const c = chapters.find((x) => x.kind === 'about');
+  if (!c) return null;
+  return {
+    stopId: 'about',
+    title: c.title,
+    paragraphs: [
+      "Outside of software, I'm usually playing volleyball, gaming, or exploring game development. I'm a big fan of Souls games, particularly Dark Souls III and Elden Ring, and have spent some time making smaller games in Unity and Roblox Studio.",
+      "I'm always up for trying something new, meeting interesting people, or working on a cool project!",
+    ],
   };
 }
 
@@ -104,6 +120,11 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
   const homeRef = useRef<HomeContent | null>(null);
   homeRef.current = homeContent;
   const [home, setHome] = useState(false); // true once the scene has the Home signpost: the flat Home card then steps aside
+
+  const aboutContent = aboutData(chapters);
+  const aboutRef = useRef<AboutContent | null>(null);
+  aboutRef.current = aboutContent;
+  const [about, setAbout] = useState(false);
 
   // The three.js scene is a separate chunk, fetched only here (pinned mode). Flat-mode users never load it
   // (and never download nature GLBs). The canvas is created per effect run so StrictMode remounts get a fresh
@@ -140,6 +161,8 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
       setJob(typeof world.setJobBoard === 'function');
       world.setHomeSign?.(homeRef.current);
       setHome(typeof world.setHomeSign === 'function');
+      world.setAboutSign?.(aboutRef.current);
+      setAbout(typeof world.setAboutSign === 'function');
       setPaper(typeof world.playContactBird === 'function');
       world.resize();
       setLoadPct(100);
@@ -155,6 +178,7 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
       setSigns(false);
       setJob(false);
       setHome(false)
+      setAbout(false)
       setPaper(false);
       canvas.remove();
     };
@@ -166,8 +190,13 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
     worldRef.current?.setProjectSigns?.(signsRef.current);
     worldRef.current?.setJobBoard?.(jobRef.current);
     worldRef.current?.setHomeSign?.(homeRef.current);
+    worldRef.current?.setAboutSign?.(aboutRef.current);
     redrawRef.current?.();
   }, [chapters, projects]);
+
+  useEffect(() => {
+    redrawRef.current?.();
+  }, [home, about]);
 
   // Scroll/progress logic. Re-runs if the chapter list changes (API data arrives) without touching the scene.
   useEffect(() => {
@@ -346,16 +375,20 @@ export function Stage({ navRef, chapters, projects }: StageProps) {
             const sign = signs && projectIndex ? signsRef.current.find((x) => x.stopId === `project-${projectIndex}`) : undefined;
             const jobPart = job && jobContent ? (c.kind === 'tech' ? 'tech' : c.kind === 'more' ? 'notes' : null) : null;
             const homePart = home && homeContent && c.kind === 'hero' ? homeContent : null;
+            const aboutPart = about && aboutContent && c.kind === 'about' ? aboutContent : null;
             return (
               <div
-              className={`panel${c.kind === 'project' ? ' panel-project' : ''}${sign ? ' panel-sign' : ''}${homePart ? ' panel-home' : ''}${jobPart ? ' panel-job' : ''}${c.kind === 'more' && !jobPart ? ' panel-more' : ''}${c.kind === 'cta' ? ' panel-cta' : ''}${c.kind === 'cta' && paper ? ' panel-paper' : ''}${c.kind === 'chat' ? ' panel-chat' : ''}`}
+              className={`panel${c.kind === 'project' ? ' panel-project' : ''}${sign ? ' panel-sign' : ''}${homePart || aboutPart ? ' panel-home' : ''}${jobPart ? ' panel-job' : ''}${c.kind === 'more' && !jobPart ? ' panel-more' : ''}${c.kind === 'cta' ? ' panel-cta' : ''}${c.kind === 'cta' && paper ? ' panel-paper' : ''}${c.kind === 'chat' ? ' panel-chat' : ''}`}
                 id={c.id}
                 key={c.id}
                 ref={(el) => { panelRefs.current[i] = el; }}
               >
                 {homePart ? (
                   <HomeSignControls content={homePart} onNavigate={(id) => navRef.current?.(id)} />
-                ) : sign ? (
+                ) : aboutPart ? (
+                  <AboutSignControls content={aboutPart} />
+                )
+                 : sign ? (
                   <SignControls stopId={sign.stopId} content={sign} />
                 ) : jobPart === 'tech' && jobContent ? (
                   <JobTechText content={jobContent} />

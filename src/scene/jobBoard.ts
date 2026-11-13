@@ -308,6 +308,8 @@ interface StopRow {
 }
 
 export interface JobBoard {
+    /** 0..1: how much the camera currently belongs to the board. */
+    readonly weight: number;
   group: THREE.Group;
   /** Repaints the board. Null (or no tech and no notes) leaves it blank and out of the camera's way. */
   setContent(content: JobBoardContent | null): void;
@@ -329,7 +331,7 @@ export function createJobBoard(opts: JobBoardOptions): JobBoard {
   const tA = rows.find((r) => r.chapterId === 'tech')?.progress ?? 0.9;
   const tEnd = rows.find((r) => r.chapterId === 'connect')?.progress ?? 1;
   const tPrev = Math.max(...rows.filter((r) => /^project-\d+$/.test(r.chapterId)).map((r) => r.progress), 0);
-  const tB = (tA + tEnd) / 2; // lib/stops.ts: the "more" chapter sits halfway between tech and connect
+  const tB = tA + (tEnd - tA) * 0.3; // must match lib/stops.ts: "more" sits 30% of the way from tech to connect
   const tc = (tA + tB) / 2;
   const gapPrev = Math.max(tA - tPrev, 0.05);
   const gapAB = tB - tA;
@@ -444,6 +446,9 @@ export function createJobBoard(opts: JobBoardOptions): JobBoard {
 
   return {
     group,
+    get weight() {
+      return w;
+    },
     setContent,
     dolly(t, aspect, motion, dt, pos, look) {
       if (!has) {
@@ -461,7 +466,7 @@ export function createJobBoard(opts: JobBoardOptions): JobBoard {
       const sTarget = !hasNotes ? 0 : motion ? e(t, tA + L.JOB_SLIDE_HOLD * gapAB, tB - L.JOB_SLIDE_HOLD * gapAB) : t >= tc ? 1 : 0;
       s += (sTarget - s) * follow;
       if (w <= 0) return;
-      const dist = Math.max(L.JOB_DIST, L.JOB_VIEW_K / aspect);
+      const dist = Math.max(L.JOB_DIST, L.JOB_VIEW_K / aspect) * (0.82 + 0.18 * s);
       tmp.lerpVectors(focusA, focusB, s);
       v.copy(tmp).addScaledVector(nrm, dist);
       v.y = CY + 0.05;

@@ -3,7 +3,7 @@ import * as L from './look';
 import stopsJson from '../data/stops.generated.json';
 import { BOARD_W_PX, BOARD_H_PX } from '../lib/quad';
 import {
-  BW, BH, CY, FACE_Z, FONT, PAINT, PAINT_DIM, INK, RED, GOLD, M, TOP, BOTTOM,
+  BW, BH, CY, FACE_Z, FONT, PAINT, INK, RED, GOLD, M, TOP, BOTTOM,
   prng, spacing, roundRect, wrapLines, carveText, inkText, paintWood, paintInset, weather, paintPaper, mergeGeos,
 } from './boards';
 
@@ -434,6 +434,11 @@ export function createHomeSign(opts: HomeSignOptions): HomeSign {
     window.dispatchEvent(
       new CustomEvent('board-screen', { detail: { id: HOME_ID, index: 0, visible, quad: visible ? quad.slice() : [], hits } }),
     );
+  
+  const onRequest = () => {
+    shown = false;
+  };
+  window.addEventListener('board-request', onRequest);
 
   return {
     group,
@@ -481,6 +486,7 @@ export function createHomeSign(opts: HomeSignOptions): HomeSign {
       send(ok);
     },
     dispose() {
+      window.removeEventListener('board-request', onRequest);
       frameGeo.dispose();
       frameMat.dispose();
       faceGeo.dispose();

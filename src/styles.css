@@ -1137,6 +1137,9 @@ section.hero .btn-secondary:hover {
 .contact-ui.on-paper .paper-send:disabled { cursor: progress; }
 .contact-ui .paper-field:focus-visible, .contact-ui .paper-send:focus-visible { outline: 3px solid #d9ae50; outline-offset: 3px; }
 .contact-ui .paper-field[aria-invalid='true'] { background: rgba(122, 32, 16, 0.12); }
+/* Name field: the sticky note lies over its right end, so typed text and the caret hide under it (x 390 to 650 inside the field). */
+.contact-ui #paper-name { -webkit-mask-image: linear-gradient(to right, #000 0, #000 390px, transparent 390px, transparent 650px, #000 650px); mask-image: linear-gradient(to right, #000 0, #000 390px, transparent 390px, transparent 650px, #000 650px); }
+.contact-ui #paper-name:focus-visible { outline-offset: -3px; }
 .contact-ui .paper-status { position: absolute; box-sizing: border-box; margin: 0; display: flex; align-items: center; font: italic 600 18px/1.3 Georgia, 'Times New Roman', serif; color: #1f140b; pointer-events: none; }
 .contact-ui .paper-status.is-loading { opacity: 0.8; }
 .contact-ui .paper-status.is-error { color: #8a1c0c; font-style: normal; font-weight: 700; }

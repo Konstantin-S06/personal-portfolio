@@ -25,6 +25,7 @@ export async function createBestWorld(
     setProjectSigns: world.setProjectSigns?.bind(world),
     setJobBoard: world.setJobBoard?.bind(world),
     setHomeSign: world.setHomeSign?.bind(world),
+    setAboutSign: world.setAboutSign?.bind(world),
     playContactBird: world.playContactBird?.bind(world),
     resetContactBird: world.resetContactBird?.bind(world),
     dispose() {

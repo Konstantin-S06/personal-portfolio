@@ -322,8 +322,17 @@ export function paintInset(ctx: CanvasRenderingContext2D, rand: () => number, W 
   ctx.restore();
 }
 
+/** Darkness floor: any pixel darker than `rgb` is raised to it ('lighten' keeps the per-channel maximum). */
+export function floorDarkness(ctx: CanvasRenderingContext2D, rgb: string, W = BOARD_W_PX, H = BOARD_H_PX) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighten';
+  ctx.fillStyle = rgb;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
 /** Final wear over everything painted: grain and scuffs run across the lettering so paint and wood are one surface. */
-export function weather(ctx: CanvasRenderingContext2D, rand: () => number, W = BOARD_W_PX, H = BOARD_H_PX) {
+export function weather(ctx: CanvasRenderingContext2D, rand: () => number, W = BOARD_W_PX, H = BOARD_H_PX, fade = 1) {
   const scale = W / BOARD_W_PX; // feature counts follow the width, so a wider sheet is not sparser
   ctx.save();
   ctx.shadowColor = 'transparent';
@@ -356,7 +365,7 @@ export function weather(ctx: CanvasRenderingContext2D, rand: () => number, W = B
     const fy = TOP + rand() * (H - TOP - BOTTOM);
     const fr = 30 + rand() * 90;
     const fg = ctx.createRadialGradient(fx, fy, 0, fx, fy, fr);
-    fg.addColorStop(0, `rgba(34,20,10,${0.28 + rand() * 0.22})`);
+    fg.addColorStop(0, `rgba(34,20,10,${(0.28 + rand() * 0.22) * fade})`);
     fg.addColorStop(1, 'rgba(34,20,10,0)');
     ctx.fillStyle = fg;
     ctx.fillRect(fx - fr, fy - fr, fr * 2, fr * 2);
@@ -1015,8 +1024,9 @@ export function createSignposts(opts: SignpostOptions): Signposts {
       ctx.clip();
       paintWood(ctx, prng(900 + i));
       paintInset(ctx, prng(1300 + i));
+      floorDarkness(ctx, 'rgb(44,31,22)');
       s.hits = c ? paintProject(ctx, c) : [];
-      weather(ctx, prng(1700 + i));
+      weather(ctx, prng(1700 + i), BOARD_W_PX, BOARD_H_PX, 0.35);
       s.has = !!c;
       ctx.restore();
     });

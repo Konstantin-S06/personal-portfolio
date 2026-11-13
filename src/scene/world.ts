@@ -12,6 +12,7 @@ import { createSky } from './sky';
 import { createSignposts } from './boards';
 import { createJobBoard } from './jobBoard';
 import { createHomeSign, type HomeContent } from './homeSign';
+import { createAboutSign, type AboutContent } from './aboutSign';
 import { createLectern } from './lectern';
 import { createContactBird } from './bird';
 import type { JobBoardContent, SignContent } from '../lib/signContent';
@@ -29,6 +30,8 @@ export interface World {
   setJobBoard?(content: JobBoardContent | null): void;
     /** Content for the Home signpost. Null clears it. Its presence tells the UI the board exists. */
     setHomeSign?(content: HomeContent | null): void;
+       /** Content for the About notice on the tree. Null clears it. */
+   setAboutSign?(content: AboutContent | null): void;
     /**
    * Starts the bird flight after a successful send. `onDone` fires when the bird has left, or at once under reduced
    * motion. Returns true only if a flight started (false under reduced motion or if one is already running).
@@ -222,6 +225,8 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   scene.add(jobBoard.group);
   const homeSign = createHomeSign({ curve, claim, anisotropy });
   scene.add(homeSign.group);  
+  const aboutSign = createAboutSign({ curve, claim, anisotropy });
+  scene.add(aboutSign.group);
   const lectern = createLectern({ curve, fireAt: campfire, claim, anisotropy });
   scene.add(lectern.group);
 
@@ -646,7 +651,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
   );
   scene.add(ground);
   disposables.push(ground.geometry, ground.material as THREE.Material);
-  disposables.push(signs, jobBoard, lectern, homeSign);
+  disposables.push(signs, jobBoard, lectern, homeSign, aboutSign);
 
   const dirt = createDirtPath([...pathCore, ...room.routePoints], campfire);
   scene.add(dirt.group);
@@ -949,6 +954,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
       look.lerp(gazeAim, wFire);
     }
     homeSign.dolly(p, camera.aspect, motion, dt, pos, look);
+    aboutSign.dolly(p, camera.aspect, motion, dt, pos, look);
     signs.dolly(p, camera.aspect, motion, dt, pos, look);
     jobBoard.dolly(p, camera.aspect, motion, dt, pos, look);
     if (tThrone > 0) {
@@ -959,9 +965,11 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     }
         // Contact: glide from the end of the walk to a view of the lectern paper. Blended after every other camera
     // rule, and handed back to the throne camera as that starts, so nothing jumps.
+    const CONTACT_HOLD = 0.12; // share of the throne section the camera stays parked at the lectern before handing over
     const wLect =
       THREE.MathUtils.smoothstep(p, L.CONTACT_CAM_START, 1) *
-      (1 - THREE.MathUtils.smoothstep(tThrone, 0, L.CONTACT_CAM_THRONE_FADE));
+      (1 - THREE.MathUtils.smoothstep(tThrone, CONTACT_HOLD, CONTACT_HOLD + L.CONTACT_CAM_THRONE_FADE)) *
+      (1 - jobBoard.weight);
     if (wLect > 0) {
       const c = lectern.paperPose.center;
       const fitDist =
@@ -983,6 +991,7 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     signs.project(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
     jobBoard.project(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
     homeSign.project(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
+    aboutSign.project(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
     lectern.setFocus(1 - THREE.MathUtils.smoothstep(camera.position.distanceTo(lectern.paperPose.center), L.CONTACT_FOCUS_NEAR, L.CONTACT_FOCUS_FAR));
     lectern.project(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
     if (tThrone > 0) room.projectBook(camera, canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
@@ -1082,6 +1091,9 @@ function buildWorld(canvas: HTMLCanvasElement, kit: NatureKit | null): World {
     },
     setHomeSign(content) {
       homeSign.setContent(content);
+    },
+    setAboutSign(content) {
+      aboutSign.setContent(content);
     },
     playContactBird(onDone) {
       if (bird.playing) return false;

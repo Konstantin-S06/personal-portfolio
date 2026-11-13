@@ -313,7 +313,7 @@ export const SIGN_HOLD = 0.06; // fraction of the gap to the neighbouring stop w
 export const SIGN_BLEND = 0.5; // fraction of the gap over which the camera eases to and from the sign
 export const SIGN_EASE = 0.5; // seconds: time constant of the camera's glide to and from a sign (bigger = slower)
 export const SIGN_FRAME_BRIGHT = 1.7; // multiplies the frame's wood colours so posts and roof are not black at dusk
-export const HOME_SIDE = -1; // Home signpost: -1 = left of the path (project-1 is on the right)
+export const HOME_SIDE = 1; // Home signpost: 1 = right of the path (About is on the left, project-1 on the right)
 
 // ---- 12. Job board (jobBoard.ts): Tech Stack ledger on the left half, pinned notes on the right ----------------
 export const JOB_SIDE = -1; // -1 = left of the path. On the left the board's +x runs along the walking direction, so the tech half is met first and the notes second

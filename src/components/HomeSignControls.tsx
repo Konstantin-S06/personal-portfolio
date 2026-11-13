@@ -40,6 +40,7 @@ export function HomeSignControls({ content, onNavigate }: { content: HomeContent
       }
     };
     window.addEventListener('board-screen', onScreen);
+    window.dispatchEvent(new Event('board-request'));
     return () => window.removeEventListener('board-screen', onScreen);
   }, [stopId]);
 

@@ -111,6 +111,206 @@ function paintForm(ctx: CanvasRenderingContext2D) {
   ctx.textBaseline = 'alphabetic';
 }
 
+// ---- sticky note: a real mesh so it can lift and crease. Canvas shading and geometry share one height field. ----
+const NOTE_W = 250;
+const NOTE_H = 180;
+const NOTE_PAD = 14; // transparent strip above the note so the tape can poke out over the sheet
+const NOTE_TILT = 0.08;
+const NOTE_S = 2; // texture px per layout px
+const NOTE_CELL = 5;
+const NOTE_TOP = -NOTE_H / 2 - NOTE_PAD;
+const NOTE_HH = NOTE_H + NOTE_PAD;
+const NOTE_CX = PX + PW - 232; // note centre on the desk canvas
+const NOTE_CY = PY + 94;
+// Crumple: three scales of folded value noise. [frequency per px, height in layout px]
+const NOTE_OCT: [number, number][] = [
+  [1 / 70, 5],
+  [1 / 34, 2.6],
+  [1 / 17, 1.2],
+];
+const NOTE_NOISE = (() => {
+  const r = prng(7500);
+  const g = new Float32Array(32 * 32);
+  for (let i = 0; i < g.length; i++) g[i] = r();
+  return g;
+})();
+const noteLat = (i: number, j: number) => NOTE_NOISE[((j & 31) << 5) | (i & 31)];
+function noteNoise(x: number, y: number): number {
+  const xi = Math.floor(x);
+  const yi = Math.floor(y);
+  const fx = x - xi;
+  const fy = y - yi;
+  const ux = fx * fx * (3 - 2 * fx);
+  const uy = fy * fy * (3 - 2 * fy);
+  const a = noteLat(xi, yi) + (noteLat(xi + 1, yi) - noteLat(xi, yi)) * ux;
+  const b = noteLat(xi, yi + 1) + (noteLat(xi + 1, yi + 1) - noteLat(xi, yi + 1)) * ux;
+  return a + (b - a) * uy;
+}
+/** Folded noise: 1 - |2n - 1| turns each layer's smooth hills into sharp ridges, which read as creases. */
+function noteCrumple(x: number, y: number): number {
+  let hgt = 0;
+  for (let i = 0; i < NOTE_OCT.length; i++) {
+    const [f, a] = NOTE_OCT[i];
+    hgt += a * (1 - Math.abs(2 * noteNoise(x * f + 11.7 * i, y * f + 5.3 * i) - 1));
+  }
+  return hgt;
+}
+
+/** Height of the note above the desk at a note-local point: a curl that lifts the bottom corners, plus the crumple. */
+function noteHeight(x: number, y: number): number {
+  const t = Math.min(1, Math.max(0, (y + NOTE_H / 2) / NOTE_H));
+  const q = Math.min(1, Math.abs(x) / (NOTE_W / 2));
+  const top = 0.3 + 0.7 * Math.min(1, Math.max(0, (y + NOTE_H / 2) / 34)); // gentle under the tape
+  const ink = Math.max(0, 1 - Math.max(Math.abs(x) / 118, Math.abs(y - 2) / 38)); // half strength behind the writing
+  return 18 * t * t * (0.3 + 0.7 * q * q) + noteCrumple(x, y) * top * (1 - 0.5 * Math.min(1, ink * 2));
+}
+function buildNoteTexture(anisotropy: number): THREE.CanvasTexture {
+  const w = NOTE_W;
+  const h = NOTE_H;
+  const tw = NOTE_W * NOTE_S;
+  const th = NOTE_HH * NOTE_S;
+  const canvas = document.createElement('canvas');
+  canvas.width = tw;
+  canvas.height = th;
+  const ctx = canvas.getContext('2d')!;
+  const rand = prng(7400);
+  ctx.scale(NOTE_S, NOTE_S);
+  ctx.translate(w / 2, -NOTE_TOP);
+
+  // body, torn along the bottom (alpha-tested, so the cut-out is the silhouette)
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, -h / 2);
+  ctx.lineTo(w / 2, -h / 2);
+  ctx.lineTo(w / 2, h / 2);
+  for (let x = w / 2 - 9; x > -w / 2; x -= 9) ctx.lineTo(x, h / 2 - rand() * 7);
+  ctx.lineTo(-w / 2, h / 2);
+  ctx.closePath();
+  const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+  g.addColorStop(0, '#f7e98e');
+  g.addColorStop(1, '#efd96c');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = 'rgba(150,115,15,0.1)'; // adhesive strip along the top
+  ctx.fillRect(-w / 2, -h / 2, w, 22);
+  const wear = ctx.createLinearGradient(0, h / 2 - 18, 0, h / 2); // duller worn bottom edge
+  wear.addColorStop(0, 'rgba(105,88,40,0)');
+  wear.addColorStop(1, 'rgba(105,88,40,0.35)');
+  ctx.fillStyle = wear;
+  ctx.fillRect(-w / 2, h / 2 - 18, w, 18);
+  const rim = ctx.createLinearGradient(w / 2 - 40, 0, w / 2, 0); // campfire warmth on the right edge
+  rim.addColorStop(0, 'rgba(255,150,60,0)');
+  rim.addColorStop(1, 'rgba(255,150,60,0.2)');
+  ctx.fillStyle = rim;
+  ctx.fillRect(w / 2 - 40, -h / 2, 40, h);
+  for (let i = 0; i < 120; i++) {
+    ctx.fillStyle = `rgba(110,80,20,${0.08 + rand() * 0.1})`;
+    const s = 0.5 + rand() * 0.8;
+    ctx.fillRect((rand() - 0.5) * w, (rand() - 0.5) * h, s, s);
+  }
+  ctx.restore();
+
+  // handwritten ink, drawn twice a hair apart for weight
+  ctx.fillStyle = '#1f1005';
+  ctx.font = `700 26px 'Segoe Script', 'Bradley Hand', 'Brush Script MT', 'Comic Sans MS', cursive`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const dx of [0, 0.5]) {
+    ctx.fillText('I’d love to hear', dx, -14, w - 30);
+    ctx.fillText('from you!', dx, 20, w - 30);
+  }
+
+  // strip of tape across the top edge, poking above the note
+  ctx.save();
+  ctx.translate(-4, -h / 2 + 2);
+  ctx.rotate(-0.09);
+  ctx.fillStyle = 'rgba(236,226,190,0.66)';
+  ctx.fillRect(-36, -11, 72, 24);
+  ctx.fillStyle = 'rgba(255,250,225,0.28)';
+  ctx.fillRect(-36, -11, 72, 7);
+  ctx.fillStyle = 'rgba(120,100,60,0.28)';
+  ctx.fillRect(-36, -11, 72, 1.5);
+  ctx.fillRect(-36, 11.5, 72, 1.5);
+  ctx.restore();
+
+  // light and shade from the height field: light from the campfire side (right, above)
+  const img = ctx.getImageData(0, 0, tw, th);
+  const data = img.data;
+  const LX = 0.5;
+  const LY = -0.3;
+  const LZ = 0.8;
+  const LN = Math.hypot(LX, LY, LZ);
+  const flat = LZ / LN;
+  for (let j = 0; j < th; j++) {
+    for (let i = 0; i < tw; i++) {
+      const k = (j * tw + i) * 4;
+      if (data[k + 3] < 8) continue;
+      const x = i / NOTE_S - w / 2;
+      const y = j / NOTE_S + NOTE_TOP;
+      const gx = noteHeight(x + 0.5, y) - noteHeight(x - 0.5, y);
+      const gy = noteHeight(x, y + 0.5) - noteHeight(x, y - 0.5);
+      const dot = (-gx * LX - gy * LY + LZ) / (LN * Math.sqrt(gx * gx + gy * gy + 1));
+      const s = Math.min(1.12, Math.max(0.74, 1 + 1.2 * (dot - flat)));
+      data[k] *= s;
+      data[k + 1] *= s;
+      data[k + 2] *= s < 1 ? s * s : s; // shadows lose blue faster, so they go warm brown instead of olive
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = anisotropy;
+  return tex;
+}
+
+/** The note grid in desk-local space (then `full`), displaced by noteHeight. UVs are the flat layout, so texture and mesh agree. */
+function buildNoteGeometry(full: THREE.Matrix4): THREE.BufferGeometry {
+  const nx = Math.round(NOTE_W / NOTE_CELL);
+  const ny = Math.round(NOTE_HH / NOTE_CELL);
+  const cs = Math.cos(NOTE_TILT);
+  const sn = Math.sin(NOTE_TILT);
+  const pos: number[] = [];
+  const uvs: number[] = [];
+  const vert = (i: number, j: number) => {
+    const x = -NOTE_W / 2 + (NOTE_W * i) / nx;
+    const y = NOTE_TOP + (NOTE_HH * j) / ny;
+    const cx = NOTE_CX + x * cs - y * sn;
+    const cy = NOTE_CY + x * sn + y * cs;
+    pos.push((cx / CW - 0.5) * DW, FACE_N + 0.004 + noteHeight(x, y) / PPU, (cy / CH - 0.5) * DD);
+    uvs.push(i / nx, 1 - j / ny);
+  };
+  for (let j = 0; j < ny; j++) {
+    for (let i = 0; i < nx; i++) {
+      vert(i, j);
+      vert(i, j + 1);
+      vert(i + 1, j);
+      vert(i + 1, j);
+      vert(i, j + 1);
+      vert(i + 1, j + 1);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.computeVertexNormals();
+  geo.applyMatrix4(full);
+  return geo;
+}
+
+/** Cast shadow of the note, painted flat on the desk under the mesh. */
+function paintNoteShadow(ctx: CanvasRenderingContext2D) {
+  ctx.save();
+  ctx.translate(NOTE_CX, NOTE_CY);
+  ctx.rotate(NOTE_TILT);
+  ctx.shadowColor = 'rgba(15,8,3,0.5)';
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = 'rgba(15,8,3,0.5)';
+  ctx.fillRect(-NOTE_W / 2 + 7, -NOTE_H / 2 + 12, NOTE_W - 4, NOTE_H - 2);
+  ctx.restore();
+}
+
 export function createLectern(opts: LecternOptions): Lectern {
   const group = new THREE.Group();
   group.name = 'contact-lectern';
@@ -199,8 +399,6 @@ export function createLectern(opts: LecternOptions): Lectern {
   deskBox(DW + 0.12, 0.06, 0.07, 0, 0.06, DD / 2 + 0.02, wood[2]); // front lip
   for (const s of [-1, 1]) deskBox(0.05, 0.05, DD + 0.1, s * (DW / 2 + 0.03), 0.055, 0, wood[1]);
   for (const x of [-0.55, 0.55]) deskBox(0.05, 0.03, 0.05, x, 0.1, DD / 2 + 0.02, 0x4a2a1a); // rusted nails
-  deskBox(0.09, 0.09, 0.09, 0.71, 0.08, -0.35, 0x15110e); // inkwell
-  deskBox(0.015, 0.015, 0.28, 0.72, 0.045, 0.1, L.PROP_COLORS.parchment[0]); // quill
 
   const frameGeo = mergeGeos(parts, ['position', 'normal', 'color']);
   frameGeo.applyMatrix4(M4);
@@ -231,6 +429,21 @@ export function createLectern(opts: LecternOptions): Lectern {
     polygonOffsetUnits: -1,
   });
   group.add(new THREE.Mesh(faceGeo, faceMat));
+
+  const noteTex = buildNoteTexture(opts.anisotropy);
+  const noteGeo = buildNoteGeometry(full);
+  const noteMat = new THREE.MeshLambertMaterial({
+    map: noteTex,
+    alphaTest: 0.5,
+    emissive: 0xffffff,
+    emissiveMap: noteTex,
+    emissiveIntensity: L.CONTACT_EMISSIVE,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+  const noteMesh = new THREE.Mesh(noteGeo, noteMat);
+  group.add(noteMesh);
 
   // ---- paper geometry in world space ----
   const surf = (px: number, py: number) =>
@@ -263,6 +476,7 @@ export function createLectern(opts: LecternOptions): Lectern {
       ctx.restore();
     }
     weather(ctx, prng(7300), CW, CH);
+    if (hasPaper) paintNoteShadow(ctx);
     ctx.restore();
     tex.needsUpdate = true;
   };
@@ -274,6 +488,9 @@ export function createLectern(opts: LecternOptions): Lectern {
     setPaperVisible(visible) {
       if (visible === hasPaper) return;
       hasPaper = visible;
+      noteGeo.dispose();
+      noteMat.dispose();
+      noteTex.dispose();
       paint();
       shown = false; // resend visibility on the next project()
     },
