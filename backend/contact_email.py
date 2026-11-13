@@ -78,7 +78,7 @@ def _send(name: str, email: str, message: str, contact_id) -> None:
             log.info("contact email sent id=%s status=%s", contact_id, resp.status)
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "replace")[:300]
-        log.error("contact email failed id=%s status=%s detail=%s", contact_id, e.code, detail)
+        log.error("contact email failed id=%s status=%s to=%r from=%r detail=%s", contact_id, e.code, to_addr, from_addr, detail)
     except Exception as e:  # network down, timeout, DNS...
         log.error("contact email failed id=%s error=%s", contact_id, e)
 
