@@ -2,9 +2,6 @@
 
 A production-ready, full-stack personal portfolio built to demonstrate professional software engineering practices. This project showcases clean architecture, RESTful API design, database modeling, and modern deployment strategies.
 
-**Live Demo:** [Your GitHub Pages URL]  
-**Backend API:** [Your Render/Fly.io URL]
-
 ## Project Overview
 
 This portfolio is designed specifically for technical recruiters and hiring managers. Unlike typical portfolio websites, this project emphasizes backend competence, system design thinking, and production engineering practices.
